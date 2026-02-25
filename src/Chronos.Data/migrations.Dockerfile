@@ -15,4 +15,4 @@ RUN dotnet restore "src/Chronos.MainApi/Chronos.MainApi.csproj"
 # Copy everything
 COPY . .
 
-ENTRYPOINT ["dotnet", "ef", "database", "update", "--project", "src/Chronos.Data", "--startup-project", "src/Chronos.MainApi"]
+ENTRYPOINT ["sh", "-c", "dotnet ef database update --project src/Chronos.Data --startup-project src/Chronos.MainApi --connection \"$ConnectionStrings__DefaultConnection\""]
