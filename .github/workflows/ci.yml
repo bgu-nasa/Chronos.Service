@@ -1,4 +1,4 @@
-name: CI Build and Test
+name: Chronos.Service.PullRequest
 
 on:
     pull_request:
