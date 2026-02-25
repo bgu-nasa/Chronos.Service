@@ -28,3 +28,7 @@ Team: Noam Argaman, Adam Rammal, Shalev Kayat and Aaron Iziyaev, or in short - T
     > dotnet ef database update --project src/Chronos.Data --startup-project src/Chronos.MainApi
     > ```
     > The migration uses `ConnectionStrings__DefaultConnection` env variable if set, otherwise it falls back to the default local connection.
+
+## Releasing (Must for deployment)
+
+Go to **Actions** → **Chronos.Service.Publish** → **Run workflow** → select `main` branch → **Run workflow**. This builds and pushes Docker images to `ghcr.io/bgu-nasa/`.
