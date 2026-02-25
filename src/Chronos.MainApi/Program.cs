@@ -119,22 +119,18 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
-// TODO Move to config file
+// TODO Move to config file, where we choose which origins to allow
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:5173")
+        policy.AllowAnyOrigin()
             .AllowAnyHeader()
-            .AllowAnyMethod()
-            .AllowCredentials();
+            .AllowAnyMethod();
     });
 });
 
 var app = builder.Build();
-
-// Enable CORS
-app.UseCors();
 
 // Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment() || app.Environment.IsLocal())
