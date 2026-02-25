@@ -21,6 +21,8 @@ jobs:
         include:
           - image: chronos-api
             dockerfile: src/Chronos.MainApi/Dockerfile
+          - image: chronos-migrations
+            dockerfile: src/Chronos.Data/migrations.Dockerfile
 
     steps:
       - name: Checkout code
