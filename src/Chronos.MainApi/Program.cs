@@ -119,7 +119,7 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
-// TODO Move to config file
+// TODO Move to config file, where we choose which origins to allow
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
