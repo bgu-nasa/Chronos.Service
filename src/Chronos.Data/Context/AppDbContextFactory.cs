@@ -9,8 +9,8 @@ public class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbContext>
     public AppDbContext CreateDbContext(string[] args)
     {
         // Read connection string from environment variable or use default for local development
-        // Set EF_CONNECTION_STRING environment variable for different environments
-        var connectionString = Environment.GetEnvironmentVariable("EF_CONNECTION_STRING")
+        // Set ConnectionStrings__DefaultConnection environment variable for different environments
+        var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
             ?? "Host=localhost;Port=5432;Database=chronos;Username=chronos;Password=chronos123";
 
         var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();

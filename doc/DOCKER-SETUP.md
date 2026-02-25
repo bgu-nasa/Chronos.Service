@@ -94,11 +94,13 @@ If you want to run the API locally (outside Docker) but connect to the Docker Po
     ```
 
 2. Run the API from your IDE or command line - it will use the connection string from `appsettings.json`:
-    ```json
-    "ConnectionStrings": {
-      "DefaultConnection": "Host=localhost;Port=5432;Database=chronos;Username=chronos;Password=chronos123"
-    }
-    ```
+   ```json
+   {
+     "ConnectionStrings": {
+       "DefaultConnection": "Host=localhost;Port=5432;Database=chronos;Username=chronos;Password=chronos123"
+     }
+   }
+   ```
 
 ## Useful Commands
 
