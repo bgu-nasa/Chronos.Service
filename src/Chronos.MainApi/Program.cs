@@ -16,6 +16,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Prometheus;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -147,6 +148,8 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 // app.UseHttpsRedirection();
+app.UseHttpMetrics();   // tracks request duration, count, and status codes
 app.MapControllers();
+app.MapMetrics();       // exposes /metrics endpoint for Prometheus to scrape
 
 app.Run();
