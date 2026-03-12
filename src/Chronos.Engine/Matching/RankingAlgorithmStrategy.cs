@@ -5,6 +5,7 @@ using Chronos.Domain.Resources;
 using Chronos.Domain.Schedule;
 using Chronos.Domain.Schedule.Messages;
 using Chronos.Engine.Constraints;
+using Chronos.Engine.Constraints.Evaluation;
 using Microsoft.EntityFrameworkCore;
 
 namespace Chronos.Engine.Matching;
@@ -19,6 +20,7 @@ public class RankingAlgorithmStrategy(
     IResourceRepository resourceRepository,
     IAssignmentRepository assignmentRepository,
     IConstraintProcessor constraintProcessor,
+    IConstraintEvaluator constraintEvaluator,
     PreferenceWeightedRanker ranker,
     AppDbContext dbContext,
     ILogger<RankingAlgorithmStrategy> logger
@@ -29,6 +31,7 @@ public class RankingAlgorithmStrategy(
     private readonly IResourceRepository _resourceRepository = resourceRepository;
     private readonly IAssignmentRepository _assignmentRepository = assignmentRepository;
     private readonly IConstraintProcessor _constraintProcessor = constraintProcessor;
+    private readonly IConstraintEvaluator _constraintEvaluator = constraintEvaluator;
     private readonly PreferenceWeightedRanker _ranker = ranker;
     private readonly AppDbContext _dbContext = dbContext;
     private readonly ILogger<RankingAlgorithmStrategy> _logger = logger;
@@ -251,19 +254,47 @@ public class RankingAlgorithmStrategy(
                 activities.Count
             );
 
-            // Get excluded slots from constraints
+            // Get excluded slots from constraints (including user constraints for the assigned lecturer)
             var excludedSlots = await _constraintProcessor.GetExcludedSlotIdsAsync(
                 activity.Id,
-                organizationId
+                organizationId,
+                activity.AssignedUserId != Guid.Empty ? activity.AssignedUserId : null,
+                schedulingPeriodId
             );
 
             // Filter valid candidates
             var totalPairs = rankedPairs.Count;
-            var validCandidates = rankedPairs
+            
+            // First filter: slot-level exclusions and occupation
+            var preFilteredPairs = rankedPairs
                 .Where(p => !excludedSlots.Contains(p.SlotId))
                 .Where(p => !occupiedPairs.Contains((p.SlotId, p.ResourceId)))
-                .Where(p => IsCapacitySufficient(p.Resource, activity.ExpectedStudents))
-                .OrderBy(p => p.Rank) // Order by rank (earlier rank = higher priority)
+                .ToList();
+            
+            // Second filter: constraint evaluation (including required_capacity)
+            var validCandidates = new List<SlotResourcePair>();
+            foreach (var pair in preFilteredPairs)
+            {
+                // Use constraint evaluator to check if this (slot, resource) pair is valid
+                var canAssign = await _constraintEvaluator.CanAssignAsync(activity, pair.Slot, pair.Resource);
+                if (canAssign)
+                {
+                    validCandidates.Add(pair);
+                }
+                else
+                {
+                    _logger.LogTrace(
+                        "Excluding (Slot {SlotId}, Resource {ResourceId}) for Activity {ActivityId} due to constraint violation",
+                        pair.SlotId,
+                        pair.ResourceId,
+                        activity.Id
+                    );
+                }
+            }
+            
+            // Order by rank (earlier rank = higher priority)
+            validCandidates = validCandidates
+                .OrderBy(p => p.Rank)
                 .ToList();
 
             var excludedByConstraints = rankedPairs.Count(p => excludedSlots.Contains(p.SlotId));
@@ -302,31 +333,109 @@ public class RankingAlgorithmStrategy(
                 activity.Id
             );
 
-            // Calculate preference weights for top candidates (optimize by only checking top N)
-            var topCandidates = validCandidates.Take(10).ToList();
-            var weights = new double[topCandidates.Count];
-
-            for (int i = 0; i < topCandidates.Count; i++)
+            // Step 1: Calculate preference weights for all valid candidates
+            var candidateWeights = new List<(SlotResourcePair Candidate, double Weight)>();
+            
+            foreach (var candidate in validCandidates)
             {
-                weights[i] = await _ranker.CalculateWeightAsync(
-                    topCandidates[i],
+                var weight = await _ranker.CalculateWeightAsync(
+                    candidate,
                     activity.AssignedUserId,
                     organizationId,
                     schedulingPeriodId
                 );
 
-                // Bias towards earlier ranks (primary criterion)
-                // Weight decreases exponentially with rank
-                weights[i] *= Math.Exp(-(topCandidates[i].Rank - 1) * 0.1);
+                candidateWeights.Add((candidate, weight));
             }
 
-            // Select using weighted random sampling
-            var selected = _ranker.SelectRandomWeighted(topCandidates, weights);
+            // Step 2: Order candidates by weight (descending) - preferences determine priority
+            var orderedCandidates = candidateWeights
+                .OrderByDescending(cw => cw.Weight)
+                .ThenBy(cw => cw.Candidate.Rank) // Secondary sort by rank for tie-breaking
+                .Select(cw => cw.Candidate)
+                .ToList();
+
+            var orderedWeights = candidateWeights
+                .OrderByDescending(cw => cw.Weight)
+                .ThenBy(cw => cw.Candidate.Rank)
+                .Select(cw => cw.Weight)
+                .ToArray();
+
+            _logger.LogDebug(
+                "Ordered {CandidateCount} valid candidates by preference weight for Activity {ActivityId}. Top weight: {TopWeight:F2}",
+                orderedCandidates.Count,
+                activity.Id,
+                orderedWeights.Length > 0 ? orderedWeights[0] : 0.0
+            );
+
+            // Step 3: Select from ordered candidates using weighted random sampling
+            // This ensures preferences are respected while still allowing some randomness
+            if (orderedCandidates.Count == 0)
+            {
+                _logger.LogWarning(
+                    "No valid candidates remaining after filtering for Activity {ActivityId}. Excluded slots: {ExcludedCount}",
+                    activity.Id,
+                    excludedSlots.Count
+                );
+                unscheduledActivities.Add(activity.Id);
+                continue;
+            }
+
+            // CRITICAL: Final validation - ensure no excluded slots made it through
+            var excludedInOrdered = orderedCandidates.Where(c => excludedSlots.Contains(c.SlotId)).ToList();
+            if (excludedInOrdered.Any())
+            {
+                _logger.LogError(
+                    "CRITICAL: Found {Count} excluded slots in ordered candidates for Activity {ActivityId}. Removing them immediately. Excluded slot IDs: {SlotIds}",
+                    excludedInOrdered.Count,
+                    activity.Id,
+                    string.Join(", ", excludedInOrdered.Select(c => c.SlotId))
+                );
+                // Remove excluded slots and their corresponding weights
+                var validOrdered = orderedCandidates
+                    .Where(c => !excludedSlots.Contains(c.SlotId))
+                    .ToList();
+                
+                if (validOrdered.Count == 0)
+                {
+                    _logger.LogWarning(
+                        "No valid candidates remaining after removing excluded slots for Activity {ActivityId}",
+                        activity.Id
+                    );
+                    unscheduledActivities.Add(activity.Id);
+                    continue;
+                }
+                
+                // Rebuild weights array for remaining candidates
+                var weightDict = candidateWeights.ToDictionary(cw => cw.Candidate, cw => cw.Weight);
+                orderedCandidates = validOrdered;
+                orderedWeights = validOrdered.Select(c => weightDict[c]).ToArray();
+            }
+
+            var selected = _ranker.SelectRandomWeighted(orderedCandidates, orderedWeights);
+            
+            // CRITICAL: Final check before assignment - if selected slot is excluded, fail
+            if (excludedSlots.Contains(selected.SlotId))
+            {
+                _logger.LogError(
+                    "CRITICAL CONSTRAINT VIOLATION: Selected slot {SlotId} is in excluded slots for Activity {ActivityId}. Excluded slots: {ExcludedCount}. This should never happen!",
+                    selected.SlotId,
+                    activity.Id,
+                    excludedSlots.Count
+                );
+                _logger.LogError(
+                    "Excluded slot IDs: {SlotIds}",
+                    string.Join(", ", excludedSlots)
+                );
+                unscheduledActivities.Add(activity.Id);
+                continue;
+            }
 
             _logger.LogInformation(
-                "Matched Activity {ActivityId} to {Candidate}",
+                "Matched Activity {ActivityId} to {Candidate} (validated against {ExcludedCount} excluded slots)",
                 activity.Id,
-                selected
+                selected,
+                excludedSlots.Count
             );
 
             // Create assignment
@@ -366,13 +475,4 @@ public class RankingAlgorithmStrategy(
         );
     }
 
-    private bool IsCapacitySufficient(Resource resource, int? expectedStudents)
-    {
-        if (expectedStudents == null || resource.Capacity == null)
-        {
-            return true; // No capacity constraint
-        }
-
-        return resource.Capacity >= expectedStudents;
-    }
 }

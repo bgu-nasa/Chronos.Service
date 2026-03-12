@@ -1,3 +1,4 @@
+using System.Linq;
 using Chronos.Data.Repositories.Schedule;
 using Chronos.Domain.Schedule;
 using Chronos.MainApi.Shared.ExternalMangement;
@@ -44,9 +45,21 @@ public class UserPreferenceService(
             "Retrieving user preference. UserId: {UserId}, OrganizationId: {OrganizationId}, SchedulingPeriodId: {SchedulingPeriodId}, Key: {Key}",
             userId, organizationId, schedulingPeriodId, key);
 
+        await scheduleValidationService.ValidateOrganizationAsync(organizationId);
 
-        var preference =
-            await ValidateAndGetUserPreferenceAsync(organizationId, schedulingPeriodId);
+        var preferences = await userPreferenceRepository.GetByUserPeriodAsync(userId, schedulingPeriodId);
+        var preference = preferences
+            .Where(p => p.OrganizationId == organizationId && p.Key == key)
+            .FirstOrDefault();
+
+        if (preference == null)
+        {
+            logger.LogInformation(
+                "User preference not found. UserId: {UserId}, OrganizationId: {OrganizationId}, SchedulingPeriodId: {SchedulingPeriodId}, Key: {Key}",
+                userId, organizationId, schedulingPeriodId, key);
+            throw new KeyNotFoundException("User preference not found.");
+        }
+
         return preference;
     }
 
