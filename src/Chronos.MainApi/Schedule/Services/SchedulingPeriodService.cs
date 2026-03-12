@@ -1,4 +1,4 @@
-﻿using Chronos.Data.Repositories.Schedule;
+using Chronos.Data.Repositories.Schedule;
 using Chronos.Domain.Schedule;
 using Chronos.MainApi.Shared.ExternalMangement;
 using Chronos.Shared.Exceptions;
@@ -17,14 +17,28 @@ public class SchedulingPeriodService(
             "Creating scheduling period. OrganizationId: {OrganizationId}, Name: {Name}, FromDate: {FromDate}, ToDate: {ToDate}",
             organizationId, name, fromDate, toDate);
         await validationService.ValidateOrganizationAsync(organizationId);
-        await ValidateDateRangeAsync(fromDate, toDate);
+        
+        // Ensure dates are in UTC for PostgreSQL (timestamp with time zone requires UTC)
+        var fromDateUtc = fromDate.Kind == DateTimeKind.Utc 
+            ? fromDate 
+            : (fromDate.Kind == DateTimeKind.Unspecified 
+                ? DateTime.SpecifyKind(fromDate, DateTimeKind.Utc)
+                : fromDate.ToUniversalTime());
+        var toDateUtc = toDate.Kind == DateTimeKind.Utc 
+            ? toDate 
+            : (toDate.Kind == DateTimeKind.Unspecified 
+                ? DateTime.SpecifyKind(toDate, DateTimeKind.Utc)
+                : toDate.ToUniversalTime());
+        
+        await ValidateDateRange(fromDateUtc, toDateUtc);
+        
         var period = new SchedulingPeriod
         {
             Id = Guid.NewGuid(),
             OrganizationId = organizationId,
             Name = name,
-            FromDate = fromDate,
-            ToDate = toDate
+            FromDate = fromDateUtc,
+            ToDate = toDateUtc
         };
 
         await schedulingPeriodRepository.AddAsync(period);
@@ -86,13 +100,25 @@ public class SchedulingPeriodService(
             "Updating scheduling period. OrganizationId: {OrganizationId}, SchedulingPeriodId: {SchedulingPeriodId}",
             organizationId, schedulingPeriodId);
 
-        await ValidateDateRangeAsync(fromDate, toDate, schedulingPeriodId);
+        // Ensure dates are in UTC for PostgreSQL (timestamp with time zone requires UTC)
+        var fromDateUtc = fromDate.Kind == DateTimeKind.Utc 
+            ? fromDate 
+            : (fromDate.Kind == DateTimeKind.Unspecified 
+                ? DateTime.SpecifyKind(fromDate, DateTimeKind.Utc)
+                : fromDate.ToUniversalTime());
+        var toDateUtc = toDate.Kind == DateTimeKind.Utc 
+            ? toDate 
+            : (toDate.Kind == DateTimeKind.Unspecified 
+                ? DateTime.SpecifyKind(toDate, DateTimeKind.Utc)
+                : toDate.ToUniversalTime());
 
         var period = await ValidateAndGetSchedulingPeriodAsync(organizationId, schedulingPeriodId);
 
+        await ValidateDateRange(fromDateUtc, toDateUtc, schedulingPeriodId);
+
         period.Name = name;
-        period.FromDate = fromDate;
-        period.ToDate = toDate;
+        period.FromDate = fromDateUtc;
+        period.ToDate = toDateUtc;
 
         await schedulingPeriodRepository.UpdateAsync(period);
 
@@ -110,9 +136,9 @@ public class SchedulingPeriodService(
 
         logger.LogInformation("Scheduling period deleted successfully. SchedulingPeriodId: {SchedulingPeriodId}", schedulingPeriodId);
     }
-    private async Task ValidateDateRangeAsync(DateTime fromDate, DateTime toDate ,Guid? schedulingPeriodId = null)
+    private async Task ValidateDateRange(DateTime fromDate, DateTime toDate, Guid? excludePeriodId = null)
     {
-        var todayUtc = DateTime.Today;
+        var todayUtc = DateTime.UtcNow.Date;
 
         if (fromDate.Date < todayUtc || toDate.Date < todayUtc)
         {
@@ -125,16 +151,17 @@ public class SchedulingPeriodService(
         var all = await schedulingPeriodRepository.GetAllAsync();
         foreach (var period in all)
         {
-            if(schedulingPeriodId != null && period.Id == schedulingPeriodId)
+            // Exclude the current period when updating
+            if (excludePeriodId.HasValue && period.Id == excludePeriodId.Value)
             {
                 continue;
             }
+
             if (fromDate < period.ToDate && toDate > period.FromDate)
             {
                 throw new BadRequestException("The specified date range overlaps with an existing scheduling period.");
             }
         }
-        
     }
     private async Task<SchedulingPeriod> ValidateAndGetSchedulingPeriodAsync(Guid organizationId, Guid schedulingPeriodId)
     {
