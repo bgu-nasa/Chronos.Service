@@ -8,7 +8,10 @@ public class OrganizationRepository(AppDbContext context) : IOrganizationReposit
 {
     public async Task<Organization?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        // Ignore query filters when looking up organization by ID
+        // This is needed for authentication flows where organization context isn't set yet
         return await context.Organizations
+            .IgnoreQueryFilters()
             .FirstOrDefaultAsync(o => o.Id == id, cancellationToken);
     }
 
@@ -32,7 +35,10 @@ public class OrganizationRepository(AppDbContext context) : IOrganizationReposit
 
     public async Task<bool> ExistsAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        // Ignore query filters when checking organization existence
+        // This is needed for authentication flows where organization context isn't set yet
         return await context.Organizations
+            .IgnoreQueryFilters()
             .AnyAsync(o => o.Id == id, cancellationToken);
     }
 
