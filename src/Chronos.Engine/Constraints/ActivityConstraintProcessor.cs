@@ -21,7 +21,7 @@ public class ActivityConstraintProcessor(
     private readonly ILogger<ActivityConstraintProcessor> _logger = logger;
 
     public async Task<HashSet<Guid>> GetExcludedSlotIdsAsync(
-        Guid activityId, 
+        Guid activityId,
         Guid organizationId,
         Guid? userId = null,
         Guid? schedulingPeriodId = null
@@ -190,7 +190,7 @@ public class ActivityConstraintProcessor(
             "Processing forbidden_timerange constraint. Raw value from database: '{ConstraintValue}'",
             constraint.Value
         );
-        
+
         var forbiddenRanges = ParseForbiddenRanges(constraint.Value);
 
         _logger.LogInformation(
@@ -266,7 +266,7 @@ public class ActivityConstraintProcessor(
                 // Check if time ranges overlap (both in UTC)
                 // Two time ranges overlap if: slotStart < forbiddenEnd AND slotEnd > forbiddenStart
                 var overlaps = slot.FromTime < forbiddenRange.EndTime && slot.ToTime > forbiddenRange.StartTime;
-                
+
                 _logger.LogTrace(
                     "Time overlap check for slot {SlotId} (UTC): {FromTime} < {ForbiddenEnd} = {Check1}, {ToTime} > {ForbiddenStart} = {Check2}, Overlaps = {Overlaps}",
                     slot.Id,
@@ -378,11 +378,11 @@ public class ActivityConstraintProcessor(
         // Normalize to capitalized format: "Monday", "Tuesday", etc.
         // Handle common variations
         var normalized = weekday.Trim();
-        
+
         // Capitalize first letter, lowercase the rest
         if (normalized.Length > 0)
         {
-            normalized = char.ToUpperInvariant(normalized[0]) + 
+            normalized = char.ToUpperInvariant(normalized[0]) +
                         (normalized.Length > 1 ? normalized.Substring(1).ToLowerInvariant() : "");
         }
 
