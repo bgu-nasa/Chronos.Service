@@ -4,6 +4,7 @@ using Chronos.Domain.Resources;
 using Chronos.Domain.Schedule;
 using Chronos.Domain.Schedule.Messages;
 using Chronos.Engine.Constraints;
+using Chronos.Engine.Constraints.Evaluation;
 
 namespace Chronos.Engine.Matching;
 
@@ -18,6 +19,7 @@ public class OnlineMatchingStrategy(
     IResourceRepository resourceRepository,
     IAssignmentRepository assignmentRepository,
     IConstraintProcessor constraintProcessor,
+    IConstraintEvaluator constraintEvaluator,
     PreferenceWeightedRanker ranker,
     ILogger<OnlineMatchingStrategy> logger
 ) : IMatchingStrategy
@@ -29,6 +31,7 @@ public class OnlineMatchingStrategy(
     private readonly IResourceRepository _resourceRepository = resourceRepository;
     private readonly IAssignmentRepository _assignmentRepository = assignmentRepository;
     private readonly IConstraintProcessor _constraintProcessor = constraintProcessor;
+    private readonly IConstraintEvaluator _constraintEvaluator = constraintEvaluator;
     private readonly PreferenceWeightedRanker _ranker = ranker;
     private readonly ILogger<OnlineMatchingStrategy> _logger = logger;
 
@@ -122,7 +125,9 @@ public class OnlineMatchingStrategy(
             // Step 4: Check if current assignment is still valid
             var excludedSlots = await _constraintProcessor.GetExcludedSlotIdsAsync(
                 activity.Id,
-                constraintRequest.OrganizationId
+                constraintRequest.OrganizationId,
+                activity.AssignedUserId != Guid.Empty ? activity.AssignedUserId : null,
+                constraintRequest.SchedulingPeriodId
             );
 
             bool isCurrentAssignmentValid = !excludedSlots.Contains(currentAssignment.SlotId);
@@ -237,15 +242,15 @@ public class OnlineMatchingStrategy(
                     continue;
                 }
 
-                // Check capacity
-                if (!IsCapacitySufficient(resource, activity.ExpectedStudents))
+                // Check constraints (including required_capacity)
+                var canAssign = await _constraintEvaluator.CanAssignAsync(activity, slot, resource);
+                if (!canAssign)
                 {
                     excludedByCapacityCount++;
                     _logger.LogTrace(
-                        "Resource {ResourceId} excluded due to insufficient capacity: {Capacity} < {Expected}",
+                        "Resource {ResourceId} excluded due to constraint violation for Activity {ActivityId}",
                         resource.Id,
-                        resource.Capacity,
-                        activity.ExpectedStudents
+                        activity.Id
                     );
                     continue;
                 }
@@ -348,13 +353,4 @@ public class OnlineMatchingStrategy(
         );
     }
 
-    private bool IsCapacitySufficient(Domain.Resources.Resource resource, int? expectedStudents)
-    {
-        if (expectedStudents == null || resource.Capacity == null)
-        {
-            return true; // No capacity constraint
-        }
-
-        return resource.Capacity >= expectedStudents;
-    }
 }
