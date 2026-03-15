@@ -1,5 +1,7 @@
+using Chronos.Domain.Schedule.Messages;
 using Chronos.MainApi.Schedule.Contracts;
 using Chronos.MainApi.Schedule.Extensions;
+using Chronos.MainApi.Schedule.Messaging;
 using Chronos.MainApi.Schedule.Services;
 using Chronos.MainApi.Shared.Controllers.Utils;
 using Microsoft.AspNetCore.Authorization;
@@ -13,7 +15,8 @@ public class ScheduleController(
     ILogger<ScheduleController> logger,
     ISchedulingPeriodService schedulingPeriodService,
     ISlotService slotService,
-    IAssignmentService assignmentService)
+    IAssignmentService assignmentService,
+    IMessagePublisher messagePublisher)
     : ControllerBase
 {
     private const string ViewerPolicy = "OrgRole:Viewer";
@@ -301,5 +304,38 @@ public class ScheduleController(
         await assignmentService.DeleteAssignmentAsync(organizationId, assignmentId);
 
         return NoContent();
+    }
+
+    [Authorize(Policy = ResourceManagerPolicy)]
+    [HttpPost("periods/{schedulingPeriodId}/batch-schedule")]
+    public async Task<IActionResult> TriggerBatchScheduling(Guid schedulingPeriodId)
+    {
+        logger.LogInformation("Trigger batch scheduling endpoint was called for {PeriodId}", schedulingPeriodId);
+        var organizationId = ControllerUtils.GetOrganizationIdAndFailIfMissing(HttpContext, logger);
+
+        // Validate that the scheduling period exists and belongs to the organization
+        var period = await schedulingPeriodService.GetSchedulingPeriodAsync(organizationId, schedulingPeriodId);
+        if (period == null)
+        {
+            return NotFound($"Scheduling period {schedulingPeriodId} not found");
+        }
+
+        // Create batch scheduling request
+        var request = new SchedulePeriodRequest(
+            SchedulingPeriodId: schedulingPeriodId,
+            OrganizationId: organizationId,
+            Mode: SchedulingMode.Batch
+        );
+
+        // Publish to RabbitMQ
+        await messagePublisher.PublishAsync(request, "request.batch");
+
+        logger.LogInformation(
+            "Batch scheduling request published for period {PeriodId} in organization {OrganizationId}",
+            schedulingPeriodId,
+            organizationId
+        );
+
+        return Accepted(new { message = "Batch scheduling request has been submitted successfully" });
     }
 }
