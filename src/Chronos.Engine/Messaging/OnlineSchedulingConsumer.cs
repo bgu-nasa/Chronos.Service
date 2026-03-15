@@ -28,10 +28,37 @@ public class OnlineSchedulingConsumer(
     {
         _logger.LogInformation("Online Scheduling Consumer starting...");
 
+        // Retry connection with exponential backoff
+        const int maxRetries = 10;
+        const int initialDelayMs = 2000;
+        
+        for (int attempt = 1; attempt <= maxRetries; attempt++)
+        {
+            try
+            {
+                _channel = _connectionFactory.CreateChannel();
+                _channel.BasicQos(prefetchSize: 0, prefetchCount: 1, global: false);
+                break; // Success, exit retry loop
+            }
+            catch (Exception ex) when (attempt < maxRetries)
+            {
+                var delay = initialDelayMs * attempt; // Exponential backoff: 2s, 4s, 6s, etc.
+                _logger.LogWarning(
+                    "Failed to connect to RabbitMQ (attempt {Attempt}/{MaxRetries}). Retrying in {Delay}ms. Error: {Error}",
+                    attempt, maxRetries, delay, ex.Message);
+                
+                await Task.Delay(delay, stoppingToken);
+            }
+        }
+
+        if (_channel == null)
+        {
+            _logger.LogError("Failed to connect to RabbitMQ after {MaxRetries} attempts", maxRetries);
+            throw new InvalidOperationException("Unable to establish RabbitMQ connection after multiple retries");
+        }
+
         try
         {
-            _channel = _connectionFactory.CreateChannel();
-            _channel.BasicQos(prefetchSize: 0, prefetchCount: 1, global: false);
 
             var consumer = new EventingBasicConsumer(_channel);
 

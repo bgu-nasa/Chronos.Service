@@ -33,8 +33,15 @@ builder.Services.Configure<RabbitMqOptions>(
 // Add IHttpContextAccessor (required by AppDbContext, but will be null in non-web context)
 builder.Services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
 
-// Database - using InMemoryDatabase for now (same as MainApi)
-builder.Services.AddDbContext<AppDbContext>(options => options.UseInMemoryDatabase("AppDbContext"));
+// Database configuration - use PostgreSQL connection string from configuration
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (string.IsNullOrEmpty(connectionString))
+{
+    throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+}
+
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(connectionString));
 
 // Auth Repositories
 builder.Services.AddScoped<IUserRepository, UserRepository>();
