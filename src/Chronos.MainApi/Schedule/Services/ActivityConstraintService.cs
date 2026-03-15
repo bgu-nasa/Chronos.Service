@@ -19,7 +19,7 @@ public class ActivityConstraintService(
     {
         
         await validationService.ValidateOrganizationAsync(organizationId);
-        ValidateJsonValue(value);
+        ValidateConstraintValue(key, value);
         var constraint = new ActivityConstraint
         {
             Id = Guid.NewGuid(),
@@ -65,7 +65,7 @@ public class ActivityConstraintService(
         string key, string value)
     {
         logger.LogInformation("Updating ActivityConstraint {ActivityConstraintId} for Organization {OrganizationId}", activityConstraintId, organizationId);
-        ValidateJsonValue(value);
+        ValidateConstraintValue(key, value);
         var constraint = await ValidateAndGetActivityConstraintAsync(organizationId, activityConstraintId);
         constraint.Key = key;
         constraint.Value = value;
@@ -94,20 +94,29 @@ public class ActivityConstraintService(
         }
         return activityConstraint;
     }
-    private void ValidateJsonValue(string value)
+    private void ValidateConstraintValue(string key, string value)
     {
         if (string.IsNullOrWhiteSpace(value))
         {
             throw new ArgumentException("Value cannot be null or empty.", nameof(value));
         }
 
-        try
+        // Only validate JSON format for constraint types that require JSON
+        // JSON-based constraints: required_capacity, time_range
+        // String-based constraints: compatible_resource_types, location_preference, preferred_weekdays, forbidden_timerange
+        var jsonBasedConstraints = new[] { "required_capacity", "time_range" };
+        
+        if (jsonBasedConstraints.Contains(key, StringComparer.OrdinalIgnoreCase))
         {
-            JsonDocument.Parse(value);
+            try
+            {
+                JsonDocument.Parse(value);
+            }
+            catch (JsonException ex)
+            {
+                throw new ArgumentException($"Value must be valid JSON: {ex.Message}", nameof(value), ex);
+            }
         }
-        catch (JsonException ex)
-        {
-            throw new ArgumentException($"Value must be valid JSON: {ex.Message}", nameof(value), ex);
-        }
+        // For non-JSON constraints, just ensure it's not empty (format validation happens in validators)
     }
 }
