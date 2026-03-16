@@ -35,6 +35,19 @@ services:
     networks:
       - chronos-network
 
+  migrations:
+    build:
+      context: .
+      dockerfile: src/Chronos.Data/migrations.Dockerfile
+    container_name: chronos-migrations
+    env_file:
+      - .local.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - chronos-network
+
   api:
     build:
       context: .
@@ -43,15 +56,6 @@ services:
     env_file:
       - .local.env
     restart: unless-stopped
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - ASPNETCORE_URLS=http://+:8080
-      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=chronos;Username=chronos;Password=chronos123
-      - RabbitMQ__HostName=rabbitmq
-      - RabbitMQ__Port=5672
-      - RabbitMQ__UserName=guest
-      - RabbitMQ__Password=guest
-      - RabbitMQ__VirtualHost=/
     ports:
       - "5000:8080"
     depends_on:
@@ -59,6 +63,8 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
     networks:
       - chronos-network
 
@@ -68,19 +74,15 @@ services:
       dockerfile: src/Chronos.Engine/Dockerfile
     container_name: chronos-engine
     restart: unless-stopped
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - RabbitMQ__HostName=rabbitmq
-      - RabbitMQ__Port=5672
-      - RabbitMQ__UserName=guest
-      - RabbitMQ__Password=guest
-      - RabbitMQ__VirtualHost=/
-      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=chronos;Username=chronos;Password=chronos123
+    env_file:
+      - .local.env
     depends_on:
       postgres:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
     networks:
       - chronos-network
 
