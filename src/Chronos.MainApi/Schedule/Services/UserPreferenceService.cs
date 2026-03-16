@@ -1,3 +1,4 @@
+using System.Linq;
 using Chronos.Data.Repositories.Schedule;
 using Chronos.Domain.Schedule;
 using Chronos.MainApi.Shared.ExternalMangement;
