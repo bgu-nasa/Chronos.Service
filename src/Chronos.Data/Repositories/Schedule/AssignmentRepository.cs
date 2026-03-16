@@ -1,4 +1,4 @@
-﻿using Chronos.Data.Context;
+using Chronos.Data.Context;
 using Chronos.Domain.Schedule;
 using Microsoft.EntityFrameworkCore;
 
@@ -44,6 +44,16 @@ public class AssignmentRepository(AppDbContext context) : IAssignmentRepository
             .ToListAsync();
     }
 
+    public async Task<List<Assignment>> GetBySchedulingPeriodIdAsync(Guid schedulingPeriodId)
+    {
+        var slotIds = await context.Slots
+            .Where(s => s.SchedulingPeriodId == schedulingPeriodId)
+            .Select(s => s.Id)
+            .ToListAsync();
+        return await context.Assignments
+            .Where(a => slotIds.Contains(a.SlotId))
+            .ToListAsync();
+    }
 
     public async Task AddAsync(Assignment assignment)
     {
@@ -60,6 +70,13 @@ public class AssignmentRepository(AppDbContext context) : IAssignmentRepository
     public async Task DeleteAsync(Assignment assignment)
     {
         context.Assignments.Remove(assignment);
+        await context.SaveChangesAsync();
+    }
+
+    public async Task DeleteBySchedulingPeriodIdAsync(Guid schedulingPeriodId)
+    {
+        var assignments = await GetBySchedulingPeriodIdAsync(schedulingPeriodId);
+        context.Assignments.RemoveRange(assignments);
         await context.SaveChangesAsync();
     }
 
