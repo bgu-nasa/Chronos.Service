@@ -158,6 +158,26 @@ public class AssignmentService(
             "Assignment deleted successfully. AssignmentId: {AssignmentId}, OrganizationId: {OrganizationId}",
             assignment.Id, organizationId);
     }
+
+    public async Task DeleteAssignmentsBySchedulingPeriodAsync(Guid organizationId, Guid schedulingPeriodId)
+    {
+        logger.LogInformation(
+            "Deleting all assignments for scheduling period. OrganizationId: {OrganizationId}, SchedulingPeriodId: {SchedulingPeriodId}",
+            organizationId, schedulingPeriodId);
+
+        await validationService.ValidateOrganizationAsync(organizationId);
+        var period = await schedulingPeriodService.GetSchedulingPeriodAsync(organizationId, schedulingPeriodId);
+        if (period == null)
+        {
+            throw new NotFoundException($"Scheduling period with ID {schedulingPeriodId} not found in organization {organizationId}.");
+        }
+
+        await assignmentRepository.DeleteBySchedulingPeriodIdAsync(schedulingPeriodId);
+
+        logger.LogInformation(
+            "All assignments deleted for scheduling period. OrganizationId: {OrganizationId}, SchedulingPeriodId: {SchedulingPeriodId}",
+            organizationId, schedulingPeriodId);
+    }
     
     private async Task<Assignment> ValidateAndGetAssignmentAsync(Guid organizationId, Guid assignmentId)
     {

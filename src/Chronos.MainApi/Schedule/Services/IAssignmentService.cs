@@ -19,6 +19,5 @@ public interface IAssignmentService
     Task UpdateAssignmentAsync(Guid organizationId, Guid assignmentId, Guid slotId, Guid resourceId , Guid activityId);
     
     Task DeleteAssignmentAsync(Guid organizationId, Guid assignmentId);
-    
-    
+    Task DeleteAssignmentsBySchedulingPeriodAsync(Guid organizationId, Guid schedulingPeriodId);
 }
