@@ -42,9 +42,6 @@ services:
     container_name: chronos-migrations
     env_file:
       - .local.env
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - ASPNETCORE_URLS=http://+:8080
     depends_on:
       postgres:
         condition: service_healthy
@@ -58,6 +55,9 @@ services:
     container_name: chronos-api
     env_file:
       - .local.env
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
     restart: unless-stopped
     ports:
       - "5000:8080"
