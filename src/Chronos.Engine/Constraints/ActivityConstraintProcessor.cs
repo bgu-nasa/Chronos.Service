@@ -27,7 +27,7 @@ public class ActivityConstraintProcessor(
         Guid? schedulingPeriodId = null
     )
     {
-        _logger.LogDebug(
+        _logger.LogInformation(
             "Getting excluded slots for Activity {ActivityId} in Organization {OrganizationId}" +
             (userId.HasValue ? " for User {UserId}" : ""),
             activityId,
@@ -40,7 +40,7 @@ public class ActivityConstraintProcessor(
         // Load all constraints for this activity
         var activityConstraints = await _constraintRepository.GetByActivityIdAsync(activityId);
 
-        _logger.LogDebug(
+        _logger.LogInformation(
             "Processing {ConstraintCount} activity constraints for Activity {ActivityId}",
             activityConstraints.Count,
             activityId
@@ -81,7 +81,7 @@ public class ActivityConstraintProcessor(
 
             foreach (var uc in orgUserConstraints)
             {
-                _logger.LogDebug(
+                _logger.LogInformation(
                     "User constraint: Key={Key}, Value={Value}",
                     uc.Key,
                     uc.Value
@@ -144,7 +144,7 @@ public class ActivityConstraintProcessor(
                 organizationId
             );
 
-            _logger.LogDebug(
+            _logger.LogInformation(
                 "Constraint {ConstraintKey}={ConstraintValue} excluded {SlotCount} slots",
                 constraint.Key,
                 constraint.Value,
@@ -296,7 +296,7 @@ public class ActivityConstraintProcessor(
             }
         }
 
-        _logger.LogDebug(
+        _logger.LogInformation(
             "forbidden_timerange constraint excluded {SlotCount} slots",
             excludedSlots.Count
         );
