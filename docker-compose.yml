@@ -46,12 +46,6 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:8080
-      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=chronos;Username=chronos;Password=chronos123
-      - RabbitMQ__HostName=rabbitmq
-      - RabbitMQ__Port=5672
-      - RabbitMQ__UserName=guest
-      - RabbitMQ__Password=guest
-      - RabbitMQ__VirtualHost=/
     ports:
       - "5000:8080"
     depends_on:
@@ -68,14 +62,10 @@ services:
       dockerfile: src/Chronos.Engine/Dockerfile
     container_name: chronos-engine
     restart: unless-stopped
+    env_file:
+      - .local.env
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - RabbitMQ__HostName=rabbitmq
-      - RabbitMQ__Port=5672
-      - RabbitMQ__UserName=guest
-      - RabbitMQ__Password=guest
-      - RabbitMQ__VirtualHost=/
-      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=chronos;Username=chronos;Password=chronos123
     depends_on:
       postgres:
         condition: service_healthy
