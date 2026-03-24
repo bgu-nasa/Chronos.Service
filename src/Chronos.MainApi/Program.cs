@@ -16,6 +16,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Prometheus;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -119,15 +120,14 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
-// TODO Move to config file
+// TODO Move to config file, where we choose which origins to allow
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:5173", "http://localhost:4173")
+        policy.AllowAnyOrigin()
             .AllowAnyHeader()
-            .AllowAnyMethod()
-            .AllowCredentials();
+            .AllowAnyMethod();
     });
 });
 
@@ -143,13 +143,13 @@ if (app.Environment.IsDevelopment() || app.Environment.IsLocal())
 // Global exception handler should be first in the pipeline
 app.UseMiddleware<GlobalExceptionHandler>();
 app.UseMiddleware<OrganizationMiddleware>();
-
-// Enable CORS (must be after middleware but before authentication/authorization)
 app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
 
 // app.UseHttpsRedirection();
+app.UseHttpMetrics();   // tracks request duration, count, and status codes
 app.MapControllers();
+app.MapMetrics();       // exposes /metrics endpoint for Prometheus to scrape
 
 app.Run();
