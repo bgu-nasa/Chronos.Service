@@ -40,6 +40,18 @@ public class SchedulingPeriodServiceTests
         var fromDate = DateTime.Today.AddDays(1);
         var toDate = DateTime.Today.AddDays(30);
 
+        // Convert to UTC to match what the service does
+        var fromDateUtc = fromDate.Kind == DateTimeKind.Utc 
+            ? fromDate 
+            : (fromDate.Kind == DateTimeKind.Unspecified 
+                ? DateTime.SpecifyKind(fromDate, DateTimeKind.Utc)
+                : fromDate.ToUniversalTime());
+        var toDateUtc = toDate.Kind == DateTimeKind.Utc 
+            ? toDate 
+            : (toDate.Kind == DateTimeKind.Unspecified 
+                ? DateTime.SpecifyKind(toDate, DateTimeKind.Utc)
+                : toDate.ToUniversalTime());
+
         _validationService.ValidateOrganizationAsync(organizationId).Returns(Task.CompletedTask);
         _schedulingPeriodRepository.GetAllAsync().Returns(new List<SchedulingPeriod>());
 
@@ -49,8 +61,8 @@ public class SchedulingPeriodServiceTests
         await _schedulingPeriodRepository.Received(1).AddAsync(Arg.Is<SchedulingPeriod>(p =>
             p.OrganizationId == organizationId &&
             p.Name == name &&
-            p.FromDate == fromDate &&
-            p.ToDate == toDate));
+            p.FromDate == fromDateUtc &&
+            p.ToDate == toDateUtc));
     }
 
     [Test]
@@ -355,12 +367,24 @@ public class SchedulingPeriodServiceTests
         var newFromDate = DateTime.Today.AddDays(5);
         var newToDate = DateTime.Today.AddDays(35);
 
+        // Convert to UTC to match what the service does
+        var newFromDateUtc = newFromDate.Kind == DateTimeKind.Utc 
+            ? newFromDate 
+            : (newFromDate.Kind == DateTimeKind.Unspecified 
+                ? DateTime.SpecifyKind(newFromDate, DateTimeKind.Utc)
+                : newFromDate.ToUniversalTime());
+        var newToDateUtc = newToDate.Kind == DateTimeKind.Utc 
+            ? newToDate 
+            : (newToDate.Kind == DateTimeKind.Unspecified 
+                ? DateTime.SpecifyKind(newToDate, DateTimeKind.Utc)
+                : newToDate.ToUniversalTime());
+
         await _service.UpdateSchedulingPeriodAsync(organizationId, periodId, "New Name", newFromDate, newToDate);
 
         await _schedulingPeriodRepository.Received(1).UpdateAsync(Arg.Is<SchedulingPeriod>(p =>
             p.Name == "New Name" &&
-            p.FromDate == newFromDate &&
-            p.ToDate == newToDate));
+            p.FromDate == newFromDateUtc &&
+            p.ToDate == newToDateUtc));
     }
 
     [Test]
