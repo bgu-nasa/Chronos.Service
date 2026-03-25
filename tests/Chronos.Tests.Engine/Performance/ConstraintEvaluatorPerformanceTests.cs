@@ -92,10 +92,10 @@ public class ConstraintEvaluatorPerformanceTests
         await _evaluator.CanAssignAsync(activity, slot, resource);
         stopwatch.Stop();
 
-        // Assert - use 5ms threshold for CI stability (runners can be slower than local)
+        // Assert
         stopwatch
             .ElapsedMilliseconds.Should()
-            .BeLessThan(5, $"Evaluation took {stopwatch.ElapsedMilliseconds}ms, expected <5ms");
+            .BeLessThan(1, $"Evaluation took {stopwatch.ElapsedMilliseconds}ms, expected <1ms");
     }
 
     [Test]
@@ -160,10 +160,10 @@ public class ConstraintEvaluatorPerformanceTests
         await _evaluator.CanAssignAsync(activity, slot, resource);
         stopwatch.Stop();
 
-        // Assert - use 5ms threshold for CI stability (runners can be slower than local)
+        // Assert
         stopwatch
             .ElapsedMilliseconds.Should()
-            .BeLessThan(5, $"Evaluation took {stopwatch.ElapsedMilliseconds}ms, expected <5ms");
+            .BeLessThan(1, $"Evaluation took {stopwatch.ElapsedMilliseconds}ms, expected <1ms");
     }
 
     [Test]
@@ -212,10 +212,10 @@ public class ConstraintEvaluatorPerformanceTests
         var violations = await _evaluator.GetViolationsAsync(activity, slot, resource);
         stopwatch.Stop();
 
-        // Assert - use 5ms threshold for CI stability (runners can be slower than local)
+        // Assert
         stopwatch
             .ElapsedMilliseconds.Should()
-            .BeLessThan(5, $"Evaluation took {stopwatch.ElapsedMilliseconds}ms, expected <5ms");
+            .BeLessThan(1, $"Evaluation took {stopwatch.ElapsedMilliseconds}ms, expected <1ms");
     }
 
     [Test]
@@ -261,9 +261,9 @@ public class ConstraintEvaluatorPerformanceTests
 
         var averageMs = stopwatch.Elapsed.TotalMilliseconds / iterations;
 
-        // Assert - use 2ms threshold for CI stability (runners can be slower than local)
+        // Assert
         averageMs
             .Should()
-            .BeLessThan(2.0, $"Average evaluation took {averageMs:F3}ms, expected <2ms");
+            .BeLessThan(1.0, $"Average evaluation took {averageMs:F3}ms, expected <1ms");
     }
 }
