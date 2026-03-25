@@ -154,7 +154,6 @@ public class UserPreferenceService(
             preference.Id, userId, organizationId);
     }
 
-
     public async Task DeleteUserPreferenceAsync(Guid organizationId, Guid userPreferenceId)
     {
         logger.LogInformation(
@@ -185,6 +184,4 @@ public class UserPreferenceService(
 
         return preference;
     }
-
-
 }
