@@ -1,3 +1,4 @@
+using System.Linq;
 using Chronos.Data.Repositories.Schedule;
 using Chronos.Domain.Schedule;
 using Chronos.MainApi.Shared.ExternalMangement;
@@ -153,7 +154,6 @@ public class UserPreferenceService(
             preference.Id, userId, organizationId);
     }
 
-
     public async Task DeleteUserPreferenceAsync(Guid organizationId, Guid userPreferenceId)
     {
         logger.LogInformation(
@@ -184,6 +184,4 @@ public class UserPreferenceService(
 
         return preference;
     }
-
-
 }
