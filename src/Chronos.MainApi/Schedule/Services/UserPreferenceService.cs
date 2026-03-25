@@ -1,3 +1,4 @@
+using System.Linq;
 using Chronos.Data.Repositories.Schedule;
 using Chronos.Domain.Schedule;
 using Chronos.MainApi.Shared.ExternalMangement;
@@ -9,7 +10,7 @@ public class UserPreferenceService(
     ILogger<UserPreferenceService> logger,
     IManagementExternalService scheduleValidationService) : IUserPreferenceService
 {
-    public async Task<Guid> CreateUserPreferenceAsync(Guid organizationId,Guid userId, Guid schedulingPeriodId,
+    public async Task<Guid> CreateUserPreferenceAsync(Guid organizationId, Guid userId, Guid schedulingPeriodId,
         string key, string value)
     {
         logger.LogInformation(
@@ -37,16 +38,29 @@ public class UserPreferenceService(
         return userPreference.Id;
     }
 
-    public async Task<UserPreference> GetUserPreferenceAsync(Guid organizationId,Guid userId,
+    public async Task<UserPreference> GetUserPreferenceAsync(Guid organizationId, Guid userId,
         Guid schedulingPeriodId, string key)
     {
         logger.LogInformation(
             "Retrieving user preference. UserId: {UserId}, OrganizationId: {OrganizationId}, SchedulingPeriodId: {SchedulingPeriodId}, Key: {Key}",
             userId, organizationId, schedulingPeriodId, key);
 
+        await scheduleValidationService.ValidateOrganizationAsync(organizationId);
 
-        var preference =
-            await ValidateAndGetUserPreferenceAsync(organizationId, schedulingPeriodId);
+        var preferences = await userPreferenceRepository.GetByUserPeriodAsync(userId, schedulingPeriodId)
+            ?? new List<UserPreference>();
+        var preference = preferences
+            .Where(p => p.OrganizationId == organizationId && p.Key == key)
+            .FirstOrDefault();
+
+        if (preference == null)
+        {
+            logger.LogInformation(
+                "User preference not found. UserId: {UserId}, OrganizationId: {OrganizationId}, SchedulingPeriodId: {SchedulingPeriodId}, Key: {Key}",
+                userId, organizationId, schedulingPeriodId, key);
+            throw new KeyNotFoundException("User preference not found.");
+        }
+
         return preference;
     }
 
@@ -56,7 +70,7 @@ public class UserPreferenceService(
 
         await scheduleValidationService.ValidateOrganizationAsync(organizationId);
 
-        var all = await userPreferenceRepository.GetAllAsync();
+        var all = await userPreferenceRepository.GetAllAsync() ?? new List<UserPreference>();
         var filtered = all
             .Where(up => up.OrganizationId == organizationId)
             .ToList();
@@ -66,14 +80,14 @@ public class UserPreferenceService(
         return filtered;
     }
 
-    public async Task<List<UserPreference>> GetAllUserPreferencesByUserIdAsync(Guid organizationId,Guid userId)
+    public async Task<List<UserPreference>> GetAllUserPreferencesByUserIdAsync(Guid organizationId, Guid userId)
     {
         logger.LogInformation("Retrieving all user preferences by user. UserId: {UserId}, OrganizationId: {OrganizationId}",
             userId, organizationId);
 
         await scheduleValidationService.ValidateOrganizationAsync(organizationId);
 
-        var all = await userPreferenceRepository.GetByUserIdAsync(userId);
+        var all = await userPreferenceRepository.GetByUserIdAsync(userId) ?? new List<UserPreference>();
         var filtered = all
             .Where(up => up.OrganizationId == organizationId)
             .ToList();
@@ -93,7 +107,7 @@ public class UserPreferenceService(
 
         await scheduleValidationService.ValidateOrganizationAsync(organizationId);
 
-        var all = await userPreferenceRepository.GetBySchedulingPeriodIdAsync(schedulingPeriodId);
+        var all = await userPreferenceRepository.GetBySchedulingPeriodIdAsync(schedulingPeriodId) ?? new List<UserPreference>();
         var filtered = all
             .Where(up => up.OrganizationId == organizationId)
             .ToList();
@@ -104,7 +118,7 @@ public class UserPreferenceService(
         return filtered;
     }
 
-    public async Task<List<UserPreference>> GetAllUserPreferencesByUserAndPeriodAsync(Guid organizationId,Guid userId,
+    public async Task<List<UserPreference>> GetAllUserPreferencesByUserAndPeriodAsync(Guid organizationId, Guid userId,
         Guid schedulingPeriodId)
     {
         logger.LogInformation(
@@ -113,7 +127,7 @@ public class UserPreferenceService(
 
         await scheduleValidationService.ValidateOrganizationAsync(organizationId);
 
-        var all = await userPreferenceRepository.GetByUserPeriodAsync(userId, schedulingPeriodId);
+        var all = await userPreferenceRepository.GetByUserPeriodAsync(userId, schedulingPeriodId) ?? new List<UserPreference>();
         var filtered = all.Where(up => up.OrganizationId == organizationId).ToList();
 
         logger.LogInformation(
@@ -121,16 +135,15 @@ public class UserPreferenceService(
             filtered.Count, userId, organizationId, schedulingPeriodId);
         return filtered;
     }
-    
-    public async Task UpdateUserPreferenceAsync(Guid organizationId,Guid userId,
+
+    public async Task UpdateUserPreferenceAsync(Guid organizationId, Guid userId,
         Guid schedulingPeriodId, string key, string value)
     {
         logger.LogInformation(
             "Updating user preference. UserId: {UserId}, OrganizationId: {OrganizationId}, SchedulingPeriodId: {SchedulingPeriodId}, Key: {Key}, Value: {Value}",
             userId, organizationId, schedulingPeriodId, key, value);
 
-        var preference =
-            await ValidateAndGetUserPreferenceAsync(organizationId, schedulingPeriodId);
+        var preference = await GetUserPreferenceAsync(organizationId, userId, schedulingPeriodId, key);
 
         preference.Value = value;
 
@@ -140,8 +153,7 @@ public class UserPreferenceService(
             "User preference updated successfully. UserPreferenceId: {UserPreferenceId}, UserId: {UserId}, OrganizationId: {OrganizationId}",
             preference.Id, userId, organizationId);
     }
-    
-    
+
     public async Task DeleteUserPreferenceAsync(Guid organizationId, Guid userPreferenceId)
     {
         logger.LogInformation(
@@ -172,6 +184,4 @@ public class UserPreferenceService(
 
         return preference;
     }
-    
-    
 }
