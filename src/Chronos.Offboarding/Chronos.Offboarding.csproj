@@ -8,6 +8,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Http" Version="2.3.9"/>
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Chronos.Data\Chronos.Data.csproj" />
+    <ProjectReference Include="..\Chronos.Domain\Chronos.Domain.csproj" />
   </ItemGroup>
 </Project>
