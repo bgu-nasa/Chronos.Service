@@ -1,6 +1,7 @@
 using Chronos.MainApi.Schedule.Contracts;
 using Chronos.MainApi.Schedule.Extensions;
 using Chronos.MainApi.Schedule.Services;
+using Chronos.MainApi.Shared.Contracts;
 using Chronos.MainApi.Shared.Controllers.Utils;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -55,15 +56,21 @@ public class ScheduleController(
 
     [Authorize (Policy = ViewerPolicy)]
     [HttpGet("periods")]
-    public async Task<IActionResult> GetAllSchedulingPeriods()
+    public async Task<IActionResult> GetAllSchedulingPeriods([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
     {
         logger.LogInformation("Get all scheduling periods endpoint was called");
         var organizationId = ControllerUtils.GetOrganizationIdAndFailIfMissing(HttpContext, logger);
 
-        var periods = await schedulingPeriodService.GetAllSchedulingPeriodsAsync(organizationId);
+        var (periods, totalCount) = await schedulingPeriodService.GetAllSchedulingPeriodsAsync(organizationId, page, pageSize);
         var responses = periods.Select(p => p.ToSchedulingPeriodResponse()).ToList();
 
-        return Ok(responses);
+        return Ok(new PagedResponse<SchedulingPeriodResponse>
+        {
+            Items = responses,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        });
     }
 
     [Authorize (Policy = ResourceManagerPolicy)]
@@ -134,28 +141,40 @@ public class ScheduleController(
 
     [Authorize (Policy = ViewerPolicy)]
     [HttpGet("slots")]
-    public async Task<IActionResult> GetAllSlots()
+    public async Task<IActionResult> GetAllSlots([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
     {
         logger.LogInformation("Get all slots endpoint was called");
         var organizationId = ControllerUtils.GetOrganizationIdAndFailIfMissing(HttpContext, logger);
 
-        var slots = await slotService.GetAllSlotsAsync(organizationId);
+        var (slots, totalCount) = await slotService.GetAllSlotsAsync(organizationId, page, pageSize);
         var responses = slots.Select(s => s.ToSlotResponse()).ToList();
 
-        return Ok(responses);
+        return Ok(new PagedResponse<SlotResponse>
+        {
+            Items = responses,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        });
     }
 
     [Authorize (Policy = ViewerPolicy)]
     [HttpGet("periods/{schedulingPeriodId}/slots")]
-    public async Task<IActionResult> GetSlotsBySchedulingPeriod(Guid schedulingPeriodId)
+    public async Task<IActionResult> GetSlotsBySchedulingPeriod(Guid schedulingPeriodId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
     {
         logger.LogInformation("Get slots by scheduling period endpoint was called for {PeriodId}", schedulingPeriodId);
         var organizationId = ControllerUtils.GetOrganizationIdAndFailIfMissing(HttpContext, logger);
 
-        var slots = await slotService.GetSlotsBySchedulingPeriodAsync(organizationId, schedulingPeriodId);
+        var (slots, totalCount) = await slotService.GetSlotsBySchedulingPeriodAsync(organizationId, schedulingPeriodId, page, pageSize);
         var responses = slots.Select(s => s.ToSlotResponse()).ToList();
 
-        return Ok(responses);
+        return Ok(new PagedResponse<SlotResponse>
+        {
+            Items = responses,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        });
     }
 
     [Authorize (Policy = ResourceManagerPolicy)]
@@ -223,41 +242,59 @@ public class ScheduleController(
 
     [Authorize (Policy = ViewerPolicy)]
     [HttpGet("assignments")]
-    public async Task<IActionResult> GetAllAssignments()
+    public async Task<IActionResult> GetAllAssignments([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
     {
         logger.LogInformation("Get all assignments endpoint was called");
         var organizationId = ControllerUtils.GetOrganizationIdAndFailIfMissing(HttpContext, logger);
 
-        var assignments = await assignmentService.GetAllAssignmentsAsync(organizationId);
+        var (assignments, totalCount) = await assignmentService.GetAllAssignmentsAsync(organizationId, page, pageSize);
         var responses = assignments.Select(a => a.ToAssignmentResponse()).ToList();
 
-        return Ok(responses);
+        return Ok(new PagedResponse<AssignmentResponse>
+        {
+            Items = responses,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        });
     }
 
     [Authorize (Policy = ViewerPolicy)]
     [HttpGet("slots/{slotId}/assignments")]
-    public async Task<IActionResult> GetAssignmentsBySlot(Guid slotId)
+    public async Task<IActionResult> GetAssignmentsBySlot(Guid slotId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
     {
         logger.LogInformation("Get assignments by slot endpoint was called for {SlotId}", slotId);
         var organizationId = ControllerUtils.GetOrganizationIdAndFailIfMissing(HttpContext, logger);
 
-        var assignments = await assignmentService.GetAssignmentsBySlotAsync(organizationId, slotId);
+        var (assignments, totalCount) = await assignmentService.GetAssignmentsBySlotAsync(organizationId, slotId, page, pageSize);
         var responses = assignments.Select(a => a.ToAssignmentResponse()).ToList();
 
-        return Ok(responses);
+        return Ok(new PagedResponse<AssignmentResponse>
+        {
+            Items = responses,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        });
     }
 
     [Authorize (Policy = ViewerPolicy)]
     [HttpGet("activities/{activityId}/assignments")]
-    public async Task<IActionResult> GetAssignmentsByActivity(Guid activityId)
+    public async Task<IActionResult> GetAssignmentsByActivity(Guid activityId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
     {
         logger.LogInformation("Get assignments by activity endpoint was called for {ActivityId}", activityId);
         var organizationId = ControllerUtils.GetOrganizationIdAndFailIfMissing(HttpContext, logger);
 
-        var assignments = await assignmentService.GetAssignmentsByActivityIdAsync(organizationId, activityId);
+        var (assignments, totalCount) = await assignmentService.GetAssignmentsByActivityIdAsync(organizationId, activityId, page, pageSize);
         var responses = assignments.Select(a => a.ToAssignmentResponse()).ToList();
 
-        return Ok(responses);
+        return Ok(new PagedResponse<AssignmentResponse>
+        {
+            Items = responses,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        });
     }
 
     [Authorize (Policy = ViewerPolicy)]
