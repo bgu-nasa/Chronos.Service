@@ -57,50 +57,50 @@ public class AssignmentService(
         return assignment;
     }
     
-    public async Task<List<Assignment>> GetAllAssignmentsAsync(Guid organizationId)
+    public async Task<(List<Assignment> Items, int TotalCount)> GetAllAssignmentsAsync(Guid organizationId, int page, int pageSize)
     {
-        logger.LogInformation("Retrieving all assignments for organization. OrganizationId: {OrganizationId}", organizationId);
+        logger.LogInformation("Retrieving all assignments for organization. OrganizationId: {OrganizationId}, Page: {Page}, PageSize: {PageSize}", organizationId, page, pageSize);
         
         await validationService.ValidateOrganizationAsync(organizationId);
-        var all = await assignmentRepository.GetAllAsync();
-        var filtered = all
+        var (items, totalCount) = await assignmentRepository.GetAllAsync(page, pageSize);
+        var filtered = items
             .Where(a => a.OrganizationId == organizationId)
             .ToList();
         
         logger.LogInformation("Retrieved {Count} assignments for organization. OrganizationId: {OrganizationId}", filtered.Count, organizationId);
-        return filtered;
+        return (filtered, totalCount);
     }
     
-    public async Task<List<Assignment>> GetAssignmentsBySlotAsync(Guid organizationId, Guid slotId)
+    public async Task<(List<Assignment> Items, int TotalCount)> GetAssignmentsBySlotAsync(Guid organizationId, Guid slotId, int page, int pageSize)
     {
         logger.LogInformation(
-            "Retrieving assignments by slot. OrganizationId: {OrganizationId}, SlotId: {SlotId}",
-            organizationId, slotId);
+            "Retrieving assignments by slot. OrganizationId: {OrganizationId}, SlotId: {SlotId}, Page: {Page}, PageSize: {PageSize}",
+            organizationId, slotId, page, pageSize);
         await validationService.ValidateOrganizationAsync(organizationId);
         
-        var all = await assignmentRepository.GetBySlotIdAsync(slotId);
-        var filtered = all
+        var (items, totalCount) = await assignmentRepository.GetBySlotIdAsync(slotId, page, pageSize);
+        var filtered = items
             .Where(a => a.OrganizationId == organizationId)
             .ToList();
         
         logger.LogInformation("Retrieved {Count} assignments for slot. OrganizationId: {OrganizationId}, SlotId: {SlotId}", filtered.Count, organizationId, slotId);
-        return filtered;
+        return (filtered, totalCount);
     }
     
-    public async Task<List<Assignment>> GetAssignmentsByActivityIdAsync(Guid organizationId, Guid activityId)
+    public async Task<(List<Assignment> Items, int TotalCount)> GetAssignmentsByActivityIdAsync(Guid organizationId, Guid activityId, int page, int pageSize)
     {
         logger.LogInformation(
-            "Retrieving assignments by activity id. OrganizationId: {OrganizationId}, activityId: {activityId}",
-            organizationId, activityId);
+            "Retrieving assignments by activity id. OrganizationId: {OrganizationId}, activityId: {activityId}, Page: {Page}, PageSize: {PageSize}",
+            organizationId, activityId, page, pageSize);
         await validationService.ValidateOrganizationAsync(organizationId);
         
-        var all = await assignmentRepository.GetByActivityIdAsync(activityId);
-        var filtered = all
+        var (items, totalCount) = await assignmentRepository.GetByActivityIdAsync(activityId, page, pageSize);
+        var filtered = items
             .Where(a => a.OrganizationId == organizationId)
             .ToList();
         
         logger.LogInformation("Retrieved {Count} assignments for activity. OrganizationId: {OrganizationId}, activityId: {activityId}", filtered.Count, organizationId, activityId);
-        return filtered;
+        return (filtered, totalCount);
     }
     
     public async Task<Assignment?> GetAssignmentBySlotAndResourceItemAsync(Guid organizationId, Guid slotId, Guid resourceId)

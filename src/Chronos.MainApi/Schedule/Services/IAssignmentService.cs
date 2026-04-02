@@ -8,11 +8,11 @@ public interface IAssignmentService
     
     Task<Assignment> GetAssignmentAsync(Guid organizationId, Guid assignmentId);
     
-    Task<List<Assignment>> GetAllAssignmentsAsync(Guid organizationId);
+    Task<(List<Assignment> Items, int TotalCount)> GetAllAssignmentsAsync(Guid organizationId, int page, int pageSize);
     
-    Task<List<Assignment>> GetAssignmentsBySlotAsync(Guid organizationId, Guid slotId);
+    Task<(List<Assignment> Items, int TotalCount)> GetAssignmentsBySlotAsync(Guid organizationId, Guid slotId, int page, int pageSize);
     
-    Task<List<Assignment>> GetAssignmentsByActivityIdAsync(Guid organizationId, Guid activityId);
+    Task<(List<Assignment> Items, int TotalCount)> GetAssignmentsByActivityIdAsync(Guid organizationId, Guid activityId, int page, int pageSize);
     
     Task<Assignment?> GetAssignmentBySlotAndResourceItemAsync(Guid organizationId, Guid slotId, Guid resourceId);
     
