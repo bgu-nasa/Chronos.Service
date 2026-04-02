@@ -12,4 +12,8 @@ public class RabbitMqOptions
     public string BatchQueueName { get; set; } = "chronos.scheduling.batch";
     public string OnlineQueueName { get; set; } = "chronos.scheduling.online";
     public string ExchangeName { get; set; } = "chronos.scheduling";
+
+    public int ConnectionMaxRetries { get; set; } = 10;
+
+    public int ConnectionInitialDelayMs { get; set; } = 2000;
 }

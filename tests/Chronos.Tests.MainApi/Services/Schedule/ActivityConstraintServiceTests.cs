@@ -57,7 +57,7 @@ public class ActivityConstraintServiceTests
     {
         var organizationId = Guid.NewGuid();
         var activityId = Guid.NewGuid();
-        var key = "max_students";
+        var key = "required_capacity"; // JSON validation only runs for required_capacity, time_range
         var value = "not valid json";
 
         _validationService.ValidateOrganizationAsync(organizationId).Returns(Task.CompletedTask);
@@ -350,14 +350,14 @@ public class ActivityConstraintServiceTests
             Id = constraintId,
             OrganizationId = organizationId,
             ActivityId = Guid.NewGuid(),
-            Key = "key",
-            Value = """{"value": true}"""
+            Key = "required_capacity", // JSON validation only runs for required_capacity, time_range
+            Value = """{"min": 30}"""
         };
 
         _activityConstraintRepository.GetByIdAsync(constraintId).Returns(constraint);
 
         var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
-            await _service.UpdateActivityConstraintAsync(organizationId, constraintId, "key", "invalid json"));
+            await _service.UpdateActivityConstraintAsync(organizationId, constraintId, "required_capacity", "invalid json"));
 
         Assert.That(ex!.Message, Does.Contain("valid JSON"));
     }

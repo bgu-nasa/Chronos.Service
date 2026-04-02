@@ -148,10 +148,8 @@ public class PreferenceWeightedRanker(
         // Example matching logic - can be extended based on preference types
         return preference.Key switch
         {
-            "preferred_weekday" => candidate.Slot.Weekday.Equals(
-                preference.Value,
-                StringComparison.OrdinalIgnoreCase
-            ),
+            "preferred_weekday" => MatchesPreferredWeekday(candidate, preference.Value),
+            "preferred_weekdays" => MatchesPreferredWeekdays(candidate, preference.Value),
             "avoid_weekday" => candidate.Slot.Weekday.Equals(
                 preference.Value,
                 StringComparison.OrdinalIgnoreCase
@@ -163,6 +161,63 @@ public class PreferenceWeightedRanker(
             "preferred_timerange" => MatchesPreferredTimeRange(candidate, preference.Value),
             _ => false,
         };
+    }
+
+    private bool MatchesPreferredWeekday(SlotResourcePair candidate, string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        // Normalize both weekdays for comparison
+        var slotWeekday = NormalizeWeekday(candidate.Slot.Weekday);
+        var preferredWeekday = NormalizeWeekday(value.Trim());
+
+        return string.Equals(slotWeekday, preferredWeekday, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool MatchesPreferredWeekdays(SlotResourcePair candidate, string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        // Parse comma-separated weekdays
+        var preferredWeekdays = value
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(w => NormalizeWeekday(w.Trim()))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        if (!preferredWeekdays.Any())
+        {
+            return false;
+        }
+
+        // Normalize slot weekday and check if it's in the preferred list
+        var slotWeekday = NormalizeWeekday(candidate.Slot.Weekday);
+        return preferredWeekdays.Contains(slotWeekday, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static string NormalizeWeekday(string weekday)
+    {
+        if (string.IsNullOrWhiteSpace(weekday))
+        {
+            return weekday;
+        }
+
+        // Normalize to capitalized format: "Monday", "Tuesday", etc.
+        var normalized = weekday.Trim();
+        
+        // Capitalize first letter, lowercase the rest
+        if (normalized.Length > 0)
+        {
+            normalized = char.ToUpperInvariant(normalized[0]) + 
+                        (normalized.Length > 1 ? normalized.Substring(1).ToLowerInvariant() : "");
+        }
+
+        return normalized;
     }
 
     private bool MatchesPreferredTimeRange(SlotResourcePair candidate, string value)
@@ -183,8 +238,12 @@ public class PreferenceWeightedRanker(
         // Check if slot falls within any preferred time range
         foreach (var preferredRange in preferredRanges)
         {
+            // Normalize both weekdays for comparison
+            var slotWeekday = NormalizeWeekday(candidate.Slot.Weekday);
+            var preferredWeekday = NormalizeWeekday(preferredRange.Weekday);
+
             // Check if weekday matches (case-insensitive)
-            if (!string.Equals(candidate.Slot.Weekday, preferredRange.Weekday, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(slotWeekday, preferredWeekday, StringComparison.OrdinalIgnoreCase))
             {
                 continue; // Different weekday, check next range
             }
@@ -229,7 +288,9 @@ public class PreferenceWeightedRanker(
                 continue;
             }
 
-            var weekday = match.Groups[1].Value;
+            var weekdayRaw = match.Groups[1].Value;
+            // Normalize weekday to match database format (capitalized: "Monday", "Tuesday", etc.)
+            var weekday = NormalizeWeekday(weekdayRaw);
             var startTimeStr = match.Groups[2].Value;
             var endTimeStr = match.Groups[3].Value;
 
@@ -276,6 +337,7 @@ public class PreferenceWeightedRanker(
         return key switch
         {
             "preferred_weekday" => 3.0,
+            "preferred_weekdays" => 3.0,
             "preferred_time_morning" => 3.0,
             "preferred_time_afternoon" => 2.0,
             "preferred_time_evening" => 2.0,
