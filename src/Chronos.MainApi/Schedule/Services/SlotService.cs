@@ -1,4 +1,4 @@
-﻿using Chronos.Data.Repositories.Schedule;
+using Chronos.Data.Repositories.Schedule;
 using Chronos.Domain.Schedule;
 using Chronos.MainApi.Shared.ExternalMangement;
 using Chronos.Shared.Exceptions;
@@ -49,40 +49,40 @@ public class SlotService(
         return await ValidateAndGetSlotAsync(organizationId, slotId);
     }
     
-    public async Task<List<Slot>> GetAllSlotsAsync(Guid organizationId)
+    public async Task<(List<Slot> Items, int TotalCount)> GetAllSlotsAsync(Guid organizationId, int page, int pageSize)
     {
-        logger.LogInformation("Retrieving all slots OrganizationId: {OrganizationId}", organizationId);
+        logger.LogInformation("Retrieving all slots OrganizationId: {OrganizationId}, Page: {Page}, PageSize: {PageSize}", organizationId, page, pageSize);
 
         await validationService.ValidateOrganizationAsync(organizationId);
 
-        var all = await slotRepository.GetAllAsync();
-        var filtered = all
+        var (items, totalCount) = await slotRepository.GetAllAsync(page, pageSize);
+        var filtered = items
             .Where(s => s.OrganizationId == organizationId)
             .OrderBy(s => s.Weekday)
             .ThenBy(s => s.FromTime)
             .ToList();
 
         logger.LogInformation("Retrieved {Count} slots for scheduling period. OrganizationId: {OrganizationId}", filtered.Count, organizationId);
-        return filtered;
+        return (filtered, totalCount);
     }
     
-    public async Task<List<Slot>> GetSlotsBySchedulingPeriodAsync(Guid organizationId, Guid schedulingPeriodId)
+    public async Task<(List<Slot> Items, int TotalCount)> GetSlotsBySchedulingPeriodAsync(Guid organizationId, Guid schedulingPeriodId, int page, int pageSize)
     {
         logger.LogInformation(
-            "Retrieving slots by scheduling period. OrganizationId: {OrganizationId}, SchedulingPeriodId: {SchedulingPeriodId}",
-            organizationId, schedulingPeriodId);
+            "Retrieving slots by scheduling period. OrganizationId: {OrganizationId}, SchedulingPeriodId: {SchedulingPeriodId}, Page: {Page}, PageSize: {PageSize}",
+            organizationId, schedulingPeriodId, page, pageSize);
 
         await validationService.ValidateOrganizationAsync(organizationId);
 
-        var all = await slotRepository.GetBySchedulingPeriodIdAsync(schedulingPeriodId);
-        var filtered = all
+        var (items, totalCount) = await slotRepository.GetBySchedulingPeriodIdAsync(schedulingPeriodId, page, pageSize);
+        var filtered = items
             .Where(s => s.OrganizationId == organizationId)
             .OrderBy(s => s.Weekday)
             .ThenBy(s => s.FromTime)
             .ToList();
 
         logger.LogInformation("Retrieved {Count} slots for scheduling period. SchedulingPeriodId: {SchedulingPeriodId}, OrganizationId: {OrganizationId}", filtered.Count, schedulingPeriodId, organizationId);
-        return filtered;
+        return (filtered, totalCount);
     }
     
     public async Task UpdateSlotAsync(Guid organizationId, Guid slotId, WeekDays weekday, TimeSpan fromTime, TimeSpan toTime)
@@ -111,7 +111,7 @@ public class SlotService(
             organizationId, slotId);
 
         var slot = await ValidateAndGetSlotAsync(organizationId, slotId);
-        var assignments = await assignmentRepository.GetBySlotIdAsync(slotId);
+        var (assignments, _) = await assignmentRepository.GetBySlotIdAsync(slotId, 1, int.MaxValue);
         foreach(var assignment in assignments)
         {
             await assignmentRepository.DeleteAsync(assignment);
@@ -140,7 +140,7 @@ public class SlotService(
             throw new BadRequestException("FromTime and ToTime must be non-negative");
         }
 
-        var slots = await slotRepository.GetBySchedulingPeriodIdAsync(schedulingPeriodId);
+        var (slots, _) = await slotRepository.GetBySchedulingPeriodIdAsync(schedulingPeriodId, 1, int.MaxValue);
         foreach (var slot in slots)
         {
             if(slotId != null && slot.Id == slotId)
