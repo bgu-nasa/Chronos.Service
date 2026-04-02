@@ -46,13 +46,13 @@ public class AssignmentRepository(AppDbContext context) : IAssignmentRepository
             .FirstOrDefaultAsync(a => a.SlotId == slotId && a.ResourceId == resourceId);
     }
 
-    public async Task<(List<Assignment> Items, int TotalCount)> GetByResourceIdAsync(Guid resourceId, int page, int pageSize)
+    public async Task<(List<Assignment> Items, int TotalCount)> GetByResourceIdAsync(Guid resourceId)
     {
         var query = context.Assignments
             .Where(a => a.ResourceId == resourceId)
             .OrderBy(a => a.Id);
         var total = await query.CountAsync();
-        var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+        var items = await query.ToListAsync();
         return (items, total);
     }
 
