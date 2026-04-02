@@ -18,11 +18,12 @@ namespace Chronos.Data.Repositories.Schedule
                 .FirstOrDefaultAsync(sp => sp.Name == name);
         }
         
-        public async Task<List<SchedulingPeriod>> GetAllAsync()
+        public async Task<(List<SchedulingPeriod> Items, int TotalCount)> GetAllAsync(int page, int pageSize)
         {
-            return await context.SchedulingPeriods
-                .OrderBy(sp => sp.FromDate)
-                .ToListAsync();
+            var query = context.SchedulingPeriods.OrderBy(sp => sp.FromDate);
+            var total = await query.CountAsync();
+            var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+            return (items, total);
         }
 
         public async Task AddAsync(SchedulingPeriod schedulingPeriod)

@@ -8,7 +8,7 @@ public interface ISchedulingPeriodRepository
     
     Task<SchedulingPeriod?> GetByNameAsync(string name);
 
-    Task<List<SchedulingPeriod>> GetAllAsync();
+    Task<(List<SchedulingPeriod> Items, int TotalCount)> GetAllAsync(int page, int pageSize);
 
     Task AddAsync(SchedulingPeriod schedulingPeriod);
 
