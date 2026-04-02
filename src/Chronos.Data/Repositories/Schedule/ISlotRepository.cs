@@ -6,9 +6,9 @@ public interface ISlotRepository
 {
     Task<Slot?> GetByIdAsync(Guid id);
 
-    Task<List<Slot>> GetBySchedulingPeriodIdAsync(Guid schedulingPeriodId);
+    Task<(List<Slot> Items, int TotalCount)> GetBySchedulingPeriodIdAsync(Guid schedulingPeriodId, int page, int pageSize);
 
-    Task<List<Slot>> GetAllAsync();
+    Task<(List<Slot> Items, int TotalCount)> GetAllAsync(int page, int pageSize);
 
     Task AddAsync(Slot slot);
 

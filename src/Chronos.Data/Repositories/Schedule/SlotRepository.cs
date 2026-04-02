@@ -12,19 +12,25 @@ public class SlotRepository(AppDbContext context) : ISlotRepository
             .FirstOrDefaultAsync(s => s.Id == id);
     }
 
-    public async Task<List<Slot>> GetBySchedulingPeriodIdAsync(Guid schedulingPeriodId)
+    public async Task<(List<Slot> Items, int TotalCount)> GetBySchedulingPeriodIdAsync(Guid schedulingPeriodId, int page, int pageSize)
     {
-        return await context.Slots
+        var query = context.Slots
             .Where(s => s.SchedulingPeriodId == schedulingPeriodId)
-            .ToListAsync();
+            .OrderBy(s => s.Weekday)
+            .ThenBy(s => s.FromTime);
+        var total = await query.CountAsync();
+        var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+        return (items, total);
     }
 
-    public async Task<List<Slot>> GetAllAsync()
+    public async Task<(List<Slot> Items, int TotalCount)> GetAllAsync(int page, int pageSize)
     {
-        return await context.Slots
+        var query = context.Slots
             .OrderBy(s => s.Weekday)
-            .ThenBy(s => s.FromTime)
-            .ToListAsync();
+            .ThenBy(s => s.FromTime);
+        var total = await query.CountAsync();
+        var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+        return (items, total);
     }
 
     public async Task AddAsync(Slot slot)
