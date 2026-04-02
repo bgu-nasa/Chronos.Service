@@ -53,7 +53,7 @@ public class RankingAlgorithmStrategy(
         try
         {
             var startTime = DateTime.UtcNow;
-            _logger.LogDebug("Starting Ranking Algorithm execution at {StartTime}", startTime);
+            _logger.LogInformation("Starting Ranking Algorithm execution at {StartTime}", startTime);
 
             // Delete all existing assignments for this period (Engine has no org filter, so we see and delete everything)
             await _assignmentRepository.DeleteBySchedulingPeriodIdAsync(periodRequest.SchedulingPeriodId);
