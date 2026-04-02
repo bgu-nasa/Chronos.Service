@@ -201,7 +201,7 @@ public class RankingAlgorithmStrategy(
         var unscheduledActivities = new List<Guid>();
         var occupiedPairs = new HashSet<(Guid SlotId, Guid ResourceId)>();
 
-        _logger.LogDebug(
+        _logger.LogInformation(
             "Processing {ActivityCount} activities with {PairCount} ranked pairs",
             activities.Count,
             rankedPairs.Count
@@ -222,7 +222,7 @@ public class RankingAlgorithmStrategy(
                 break;
             }
 
-            _logger.LogDebug(
+            _logger.LogInformation(
                 "Processing Activity {ActivityId} ({Index}/{Total})",
                 activity.Id,
                 activityIndex,
@@ -274,7 +274,7 @@ public class RankingAlgorithmStrategy(
                 continue;
             }
 
-            _logger.LogDebug(
+            _logger.LogInformation(
                 "Found {CandidateCount} valid candidates for Activity {ActivityId}",
                 validCandidates.Count,
                 activity.Id
@@ -323,7 +323,7 @@ public class RankingAlgorithmStrategy(
 
             if (createdAssignments % 10 == 0)
             {
-                _logger.LogDebug(
+                _logger.LogInformation(
                     "Progress: {Created} assignments created, {Failed} failed, {Remaining} remaining",
                     createdAssignments,
                     unscheduledActivities.Count,

@@ -17,7 +17,7 @@ public class ActivityConstraintProcessor(
 
     public async Task<HashSet<Guid>> GetExcludedSlotIdsAsync(Guid activityId, Guid organizationId)
     {
-        _logger.LogDebug(
+        _logger.LogInformation(
             "Getting excluded slots for Activity {ActivityId} in Organization {OrganizationId}",
             activityId,
             organizationId
@@ -28,7 +28,7 @@ public class ActivityConstraintProcessor(
         // Load all constraints for this activity
         var constraints = await _constraintRepository.GetByActivityIdAsync(activityId);
 
-        _logger.LogDebug(
+        _logger.LogInformation(
             "Processing {ConstraintCount} constraints for Activity {ActivityId}",
             constraints.Count,
             activityId
@@ -62,7 +62,7 @@ public class ActivityConstraintProcessor(
                 organizationId
             );
 
-            _logger.LogDebug(
+            _logger.LogInformation(
                 "Constraint {ConstraintKey}={ConstraintValue} excluded {SlotCount} slots",
                 constraint.Key,
                 constraint.Value,

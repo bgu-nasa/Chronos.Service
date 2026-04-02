@@ -127,7 +127,7 @@ public class PreferenceWeightedRanker(
             cumulative += weights[i];
             if (randomValue < cumulative)
             {
-                _logger.LogDebug(
+                _logger.LogInformation(
                     "Selected candidate {Index} with weight {Weight} (cumulative: {Cumulative}, random: {Random})",
                     i,
                     weights[i],

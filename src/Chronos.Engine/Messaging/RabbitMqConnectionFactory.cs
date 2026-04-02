@@ -57,7 +57,7 @@ public class RabbitMqConnectionFactory(
 
     public IModel CreateChannel()
     {
-        _logger.LogDebug("Creating new RabbitMQ channel");
+        _logger.LogInformation("Creating new RabbitMQ channel");
         var connection = CreateConnection();
         var channel = connection.CreateModel();
 
@@ -101,7 +101,7 @@ public class RabbitMqConnectionFactory(
             routingKey: "request.online"
         );
 
-        _logger.LogDebug("RabbitMQ channel created with queues configured");
+        _logger.LogInformation("RabbitMQ channel created with queues configured");
 
         return channel;
     }

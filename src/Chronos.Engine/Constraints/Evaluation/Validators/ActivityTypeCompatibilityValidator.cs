@@ -29,7 +29,7 @@ public class ActivityTypeCompatibilityValidator(
         Resource resource
     )
     {
-        _logger.LogDebug(
+        _logger.LogInformation(
             "Validating compatible_resource_types constraint for Activity {ActivityId}, Resource {ResourceId}",
             activity.Id,
             resource.Id

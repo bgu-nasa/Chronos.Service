@@ -19,7 +19,7 @@ public class MessagePublisher(
     public Task PublishAsync<T>(T message, string routingKey)
         where T : class
     {
-        _logger.LogDebug(
+        _logger.LogInformation(
             "Publishing message of type {MessageType} with routing key {RoutingKey}",
             typeof(T).Name,
             routingKey
@@ -46,7 +46,7 @@ public class MessagePublisher(
                 body: body
             );
 
-            _logger.LogDebug(
+            _logger.LogInformation(
                 "Published message of type {MessageType} to exchange {Exchange} with routing key {RoutingKey}",
                 typeof(T).Name,
                 _options.ExchangeName,

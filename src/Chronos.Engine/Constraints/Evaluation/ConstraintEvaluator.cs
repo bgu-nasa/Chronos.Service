@@ -51,7 +51,7 @@ public class ConstraintEvaluator : IConstraintEvaluator
         // Load all constraints for this activity
         var constraints = await constraintRepository.GetByActivityIdAsync(activity.Id);
 
-        _logger.LogDebug(
+        _logger.LogInformation(
             "Evaluating {ConstraintCount} constraints for Activity {ActivityId} with Slot {SlotId} and Resource {ResourceId}",
             constraints.Count,
             activity.Id,
@@ -80,7 +80,7 @@ public class ConstraintEvaluator : IConstraintEvaluator
             {
                 violations.Add(violation);
 
-                _logger.LogDebug(
+                _logger.LogInformation(
                     "Constraint violation detected: {ConstraintKey}={ConstraintValue}, Severity={Severity}, Message={Message}",
                     violation.ConstraintKey,
                     violation.ConstraintValue,
