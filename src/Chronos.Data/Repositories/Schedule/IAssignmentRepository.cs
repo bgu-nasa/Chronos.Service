@@ -12,7 +12,7 @@ public interface IAssignmentRepository
     Task<(List<Assignment> Items, int TotalCount)> GetByActivityIdAsync(Guid activityId, int page, int pageSize);
     Task<Assignment?> GetBySlotIdAndResourceIdAsync(Guid slotId, Guid resourceId);
 
-    Task<(List<Assignment> Items, int TotalCount)> GetByResourceIdAsync(Guid resourceId);
+    Task< List<Assignment>> GetByResourceIdAsync(Guid resourceId);
     
     Task AddAsync(Assignment assignment);
 
