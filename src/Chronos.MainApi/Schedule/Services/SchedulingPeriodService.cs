@@ -78,20 +78,20 @@ public class SchedulingPeriodService(
         return period;
     }
     
-    public async Task<List<SchedulingPeriod>> GetAllSchedulingPeriodsAsync(Guid organizationId)
+    public async Task<(List<SchedulingPeriod> Items, int TotalCount)> GetAllSchedulingPeriodsAsync(Guid organizationId, int page, int pageSize)
     {
-        logger.LogInformation("Retrieving all scheduling periods for organization. OrganizationId: {OrganizationId}", organizationId);
+        logger.LogInformation("Retrieving all scheduling periods for organization. OrganizationId: {OrganizationId}, Page: {Page}, PageSize: {PageSize}", organizationId, page, pageSize);
 
         await validationService.ValidateOrganizationAsync(organizationId);
 
-        var all = await schedulingPeriodRepository.GetAllAsync();
-        var filtered = all
+        var (items, totalCount) = await schedulingPeriodRepository.GetAllAsync(page, pageSize);
+        var filtered = items
             .Where(p => p.OrganizationId == organizationId)
             .OrderBy(p => p.FromDate)
             .ToList();
 
         logger.LogInformation("Retrieved {Count} scheduling periods for organization. OrganizationId: {OrganizationId}", filtered.Count, organizationId);
-        return filtered;
+        return (filtered, totalCount);
     }
 
     public async Task UpdateSchedulingPeriodAsync(Guid organizationId, Guid schedulingPeriodId, string name, DateTime fromDate, DateTime toDate)
@@ -148,7 +148,7 @@ public class SchedulingPeriodService(
         {
             throw new BadRequestException("FromDate must be before or equal to ToDate");
         }
-        var all = await schedulingPeriodRepository.GetAllAsync();
+        var (all, _) = await schedulingPeriodRepository.GetAllAsync(1, int.MaxValue);
         foreach (var period in all)
         {
             // Exclude the current period when updating
