@@ -53,7 +53,7 @@ public class SchedulingPeriodServiceTests
                 : toDate.ToUniversalTime());
 
         _validationService.ValidateOrganizationAsync(organizationId).Returns(Task.CompletedTask);
-        _schedulingPeriodRepository.GetAllAsync().Returns(new List<SchedulingPeriod>());
+        _schedulingPeriodRepository.GetAllAsync(1, int.MaxValue).Returns((new List<SchedulingPeriod>(), 0));
 
         var result = await _service.CreateSchedulingPeriodAsync(organizationId, name, fromDate, toDate);
 
@@ -127,7 +127,7 @@ public class SchedulingPeriodServiceTests
         };
 
         _validationService.ValidateOrganizationAsync(organizationId).Returns(Task.CompletedTask);
-        _schedulingPeriodRepository.GetAllAsync().Returns(new List<SchedulingPeriod> { existingPeriod });
+        _schedulingPeriodRepository.GetAllAsync(1, int.MaxValue).Returns((new List<SchedulingPeriod> { existingPeriod }, 1));
 
         var ex = Assert.ThrowsAsync<BadRequestException>(async () =>
             await _service.CreateSchedulingPeriodAsync(organizationId, "New Period",
@@ -150,7 +150,7 @@ public class SchedulingPeriodServiceTests
         };
 
         _validationService.ValidateOrganizationAsync(organizationId).Returns(Task.CompletedTask);
-        _schedulingPeriodRepository.GetAllAsync().Returns(new List<SchedulingPeriod> { existingPeriod });
+        _schedulingPeriodRepository.GetAllAsync(1, int.MaxValue).Returns((new List<SchedulingPeriod> { existingPeriod }, 1));
 
         var result = await _service.CreateSchedulingPeriodAsync(organizationId, "New Period",
             DateTime.Today.AddDays(25), DateTime.Today.AddDays(40));
@@ -302,9 +302,9 @@ public class SchedulingPeriodServiceTests
         };
 
         _validationService.ValidateOrganizationAsync(organizationId).Returns(Task.CompletedTask);
-        _schedulingPeriodRepository.GetAllAsync().Returns(periods);
+        _schedulingPeriodRepository.GetAllAsync(1, 10).Returns((periods, periods.Count));
 
-        var result = await _service.GetAllSchedulingPeriodsAsync(organizationId);
+        var (result, totalCount) = await _service.GetAllSchedulingPeriodsAsync(organizationId, 1, 10);
 
         Assert.That(result, Has.Count.EqualTo(2));
         Assert.That(result.All(p => p.OrganizationId == organizationId), Is.True);
@@ -335,9 +335,9 @@ public class SchedulingPeriodServiceTests
         };
 
         _validationService.ValidateOrganizationAsync(organizationId).Returns(Task.CompletedTask);
-        _schedulingPeriodRepository.GetAllAsync().Returns(periods);
+        _schedulingPeriodRepository.GetAllAsync(1, 10).Returns((periods, periods.Count));
 
-        var result = await _service.GetAllSchedulingPeriodsAsync(organizationId);
+        var (result, totalCount) = await _service.GetAllSchedulingPeriodsAsync(organizationId, 1, 10);
 
         Assert.That(result[0].Name, Is.EqualTo("Period 1"));
         Assert.That(result[1].Name, Is.EqualTo("Period 2"));
@@ -362,7 +362,7 @@ public class SchedulingPeriodServiceTests
         };
 
         _schedulingPeriodRepository.GetByIdAsync(periodId).Returns(period);
-        _schedulingPeriodRepository.GetAllAsync().Returns(new List<SchedulingPeriod> { period });
+        _schedulingPeriodRepository.GetAllAsync(1, int.MaxValue).Returns((new List<SchedulingPeriod> { period }, 1));
 
         var newFromDate = DateTime.Today.AddDays(5);
         var newToDate = DateTime.Today.AddDays(35);
@@ -394,7 +394,7 @@ public class SchedulingPeriodServiceTests
         var periodId = Guid.NewGuid();
 
         _schedulingPeriodRepository.GetByIdAsync(periodId).ReturnsNull();
-        _schedulingPeriodRepository.GetAllAsync().Returns(new List<SchedulingPeriod>());
+        _schedulingPeriodRepository.GetAllAsync(1, int.MaxValue).Returns((new List<SchedulingPeriod>(), 0));
 
         var ex = Assert.ThrowsAsync<NotFoundException>(async () =>
             await _service.UpdateSchedulingPeriodAsync(organizationId, periodId, "Name",
@@ -429,7 +429,7 @@ public class SchedulingPeriodServiceTests
         };
 
         _schedulingPeriodRepository.GetByIdAsync(periodId).Returns(period);
-        _schedulingPeriodRepository.GetAllAsync().Returns(new List<SchedulingPeriod> { period, existingPeriod });
+        _schedulingPeriodRepository.GetAllAsync(1, int.MaxValue).Returns((new List<SchedulingPeriod> { period, existingPeriod }, 2));
 
         var ex = Assert.ThrowsAsync<BadRequestException>(async () =>
             await _service.UpdateSchedulingPeriodAsync(organizationId, periodId, "Updated",
@@ -453,7 +453,7 @@ public class SchedulingPeriodServiceTests
         };
 
         _schedulingPeriodRepository.GetByIdAsync(periodId).Returns(period);
-        _schedulingPeriodRepository.GetAllAsync().Returns(new List<SchedulingPeriod> { period });
+        _schedulingPeriodRepository.GetAllAsync(1, int.MaxValue).Returns((new List<SchedulingPeriod> { period }, 1));
 
         await _service.UpdateSchedulingPeriodAsync(organizationId, periodId, "Updated Name",
             DateTime.Today.AddDays(1), DateTime.Today.AddDays(30));

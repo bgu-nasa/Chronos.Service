@@ -460,9 +460,9 @@ public class AssignmentServiceTests
         };
 
         _validationService.ValidateOrganizationAsync(organizationId).Returns(Task.CompletedTask);
-        _assignmentRepository.GetAllAsync().Returns(assignments);
+        _assignmentRepository.GetAllAsync(1, 10).Returns((assignments, assignments.Count));
 
-        var result = await _service.GetAllAssignmentsAsync(organizationId);
+        var (result, totalCount) = await _service.GetAllAssignmentsAsync(organizationId, 1, 10);
 
         Assert.That(result, Has.Count.EqualTo(1));
         Assert.That(result.All(a => a.OrganizationId == organizationId), Is.True);
@@ -490,9 +490,9 @@ public class AssignmentServiceTests
         };
 
         _validationService.ValidateOrganizationAsync(organizationId).Returns(Task.CompletedTask);
-        _assignmentRepository.GetBySlotIdAsync(slotId).Returns(assignments);
+        _assignmentRepository.GetBySlotIdAsync(slotId, 1, 10).Returns((assignments, assignments.Count));
 
-        var result = await _service.GetAssignmentsBySlotAsync(organizationId, slotId);
+        var (result, totalCount) = await _service.GetAssignmentsBySlotAsync(organizationId, slotId, 1, 10);
 
         Assert.That(result, Has.Count.EqualTo(1));
     }
@@ -519,9 +519,9 @@ public class AssignmentServiceTests
         };
 
         _validationService.ValidateOrganizationAsync(organizationId).Returns(Task.CompletedTask);
-        _assignmentRepository.GetByActivityIdAsync(activityId).Returns(assignments);
+        _assignmentRepository.GetByActivityIdAsync(activityId, 1, 10).Returns((assignments, assignments.Count));
 
-        var result = await _service.GetAssignmentsByActivityIdAsync(organizationId, activityId);
+        var (result, totalCount) = await _service.GetAssignmentsByActivityIdAsync(organizationId, activityId, 1, 10);
 
         Assert.That(result, Has.Count.EqualTo(1));
     }

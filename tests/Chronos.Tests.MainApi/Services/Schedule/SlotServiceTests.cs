@@ -58,7 +58,7 @@ public class SlotServiceTests
 
         _validationService.ValidateOrganizationAsync(organizationId).Returns(Task.CompletedTask);
         _schedulingPeriodService.GetSchedulingPeriodAsync(organizationId, schedulingPeriodId).Returns(period);
-        _slotRepository.GetBySchedulingPeriodIdAsync(schedulingPeriodId).Returns(new List<Slot>());
+        _slotRepository.GetBySchedulingPeriodIdAsync(schedulingPeriodId, 1, int.MaxValue).Returns((new List<Slot>(), 0));
 
         var result = await _service.CreateSlotAsync(organizationId, schedulingPeriodId, weekday, fromTime, toTime);
 
@@ -149,7 +149,7 @@ public class SlotServiceTests
 
         _validationService.ValidateOrganizationAsync(organizationId).Returns(Task.CompletedTask);
         _schedulingPeriodService.GetSchedulingPeriodAsync(organizationId, schedulingPeriodId).Returns(period);
-        _slotRepository.GetBySchedulingPeriodIdAsync(schedulingPeriodId).Returns(new List<Slot> { existingSlot });
+        _slotRepository.GetBySchedulingPeriodIdAsync(schedulingPeriodId, 1, int.MaxValue).Returns((new List<Slot> { existingSlot }, 1));
 
         var ex = Assert.ThrowsAsync<BadRequestException>(async () =>
             await _service.CreateSlotAsync(organizationId, schedulingPeriodId, WeekDays.Monday,
@@ -184,7 +184,7 @@ public class SlotServiceTests
 
         _validationService.ValidateOrganizationAsync(organizationId).Returns(Task.CompletedTask);
         _schedulingPeriodService.GetSchedulingPeriodAsync(organizationId, schedulingPeriodId).Returns(period);
-        _slotRepository.GetBySchedulingPeriodIdAsync(schedulingPeriodId).Returns(new List<Slot> { existingSlot });
+        _slotRepository.GetBySchedulingPeriodIdAsync(schedulingPeriodId, 1, int.MaxValue).Returns((new List<Slot> { existingSlot }, 1));
 
         var result = await _service.CreateSlotAsync(organizationId, schedulingPeriodId, WeekDays.Monday,
             TimeSpan.FromHours(11), TimeSpan.FromHours(12));
@@ -218,7 +218,7 @@ public class SlotServiceTests
 
         _validationService.ValidateOrganizationAsync(organizationId).Returns(Task.CompletedTask);
         _schedulingPeriodService.GetSchedulingPeriodAsync(organizationId, schedulingPeriodId).Returns(period);
-        _slotRepository.GetBySchedulingPeriodIdAsync(schedulingPeriodId).Returns(new List<Slot> { existingSlot });
+        _slotRepository.GetBySchedulingPeriodIdAsync(schedulingPeriodId, 1, int.MaxValue).Returns((new List<Slot> { existingSlot }, 1));
 
         var result = await _service.CreateSlotAsync(organizationId, schedulingPeriodId, WeekDays.Tuesday,
             TimeSpan.FromHours(9), TimeSpan.FromHours(11));
@@ -348,9 +348,9 @@ public class SlotServiceTests
         };
 
         _validationService.ValidateOrganizationAsync(organizationId).Returns(Task.CompletedTask);
-        _slotRepository.GetAllAsync().Returns(slots);
+        _slotRepository.GetAllAsync(1, 10).Returns((slots, slots.Count));
 
-        var result = await _service.GetAllSlotsAsync(organizationId);
+        var (result, totalCount) = await _service.GetAllSlotsAsync(organizationId, 1, 10);
 
         Assert.That(result, Has.Count.EqualTo(1));
         Assert.That(result.All(s => s.OrganizationId == organizationId), Is.True);
@@ -392,9 +392,9 @@ public class SlotServiceTests
         };
 
         _validationService.ValidateOrganizationAsync(organizationId).Returns(Task.CompletedTask);
-        _slotRepository.GetAllAsync().Returns(slots);
+        _slotRepository.GetAllAsync(1, 10).Returns((slots, slots.Count));
 
-        var result = await _service.GetAllSlotsAsync(organizationId);
+        var (result, totalCount) = await _service.GetAllSlotsAsync(organizationId, 1, 10);
 
         Assert.That(result[0].Weekday, Is.EqualTo("Monday"));
         Assert.That(result[0].FromTime, Is.EqualTo(TimeSpan.FromHours(9)));
@@ -426,9 +426,9 @@ public class SlotServiceTests
         };
 
         _validationService.ValidateOrganizationAsync(organizationId).Returns(Task.CompletedTask);
-        _slotRepository.GetBySchedulingPeriodIdAsync(schedulingPeriodId).Returns(slots);
+        _slotRepository.GetBySchedulingPeriodIdAsync(schedulingPeriodId, 1, 10).Returns((slots, slots.Count));
 
-        var result = await _service.GetSlotsBySchedulingPeriodAsync(organizationId, schedulingPeriodId);
+        var (result, totalCount) = await _service.GetSlotsBySchedulingPeriodAsync(organizationId, schedulingPeriodId, 1, 10);
 
         Assert.That(result, Has.Count.EqualTo(1));
     }
@@ -454,7 +454,7 @@ public class SlotServiceTests
         };
 
         _slotRepository.GetByIdAsync(slotId).Returns(slot);
-        _slotRepository.GetBySchedulingPeriodIdAsync(schedulingPeriodId).Returns(new List<Slot> { slot });
+        _slotRepository.GetBySchedulingPeriodIdAsync(schedulingPeriodId, 1, int.MaxValue).Returns((new List<Slot> { slot }, 1));
 
         await _service.UpdateSlotAsync(organizationId, slotId, WeekDays.Tuesday,
             TimeSpan.FromHours(10), TimeSpan.FromHours(11));
@@ -494,7 +494,7 @@ public class SlotServiceTests
         };
 
         _slotRepository.GetByIdAsync(slotId).Returns(slot);
-        _slotRepository.GetBySchedulingPeriodIdAsync(schedulingPeriodId).Returns(new List<Slot> { slot, existingSlot });
+        _slotRepository.GetBySchedulingPeriodIdAsync(schedulingPeriodId, 1, int.MaxValue).Returns((new List<Slot> { slot, existingSlot }, 2));
 
         var ex = Assert.ThrowsAsync<BadRequestException>(async () =>
             await _service.UpdateSlotAsync(organizationId, slotId, WeekDays.Tuesday,
@@ -520,7 +520,7 @@ public class SlotServiceTests
         };
 
         _slotRepository.GetByIdAsync(slotId).Returns(slot);
-        _slotRepository.GetBySchedulingPeriodIdAsync(schedulingPeriodId).Returns(new List<Slot> { slot });
+        _slotRepository.GetBySchedulingPeriodIdAsync(schedulingPeriodId, 1, int.MaxValue).Returns((new List<Slot> { slot }, 1));
 
         await _service.UpdateSlotAsync(organizationId, slotId, WeekDays.Monday,
             TimeSpan.FromHours(9), TimeSpan.FromHours(10));
@@ -560,7 +560,7 @@ public class SlotServiceTests
         };
 
         _slotRepository.GetByIdAsync(slotId).Returns(slot);
-        _assignmentRepository.GetBySlotIdAsync(slotId).Returns(assignments);
+        _assignmentRepository.GetBySlotIdAsync(slotId, 1, int.MaxValue).Returns((assignments, assignments.Count));
 
         await _service.DeleteSlotAsync(organizationId, slotId);
 
@@ -584,7 +584,7 @@ public class SlotServiceTests
         };
 
         _slotRepository.GetByIdAsync(slotId).Returns(slot);
-        _assignmentRepository.GetBySlotIdAsync(slotId).Returns(new List<Assignment>());
+        _assignmentRepository.GetBySlotIdAsync(slotId, 1, int.MaxValue).Returns((new List<Assignment>(), 0));
 
         await _service.DeleteSlotAsync(organizationId, slotId);
 
