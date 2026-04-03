@@ -1,4 +1,5 @@
 using Chronos.Data.Context;
+using Chronos.Offboarding.Repositories;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
@@ -16,6 +17,8 @@ if (string.IsNullOrEmpty(connectionString))
 // Database
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
+
+builder.Services.AddScoped<IOffboardingRepository, OffboardingRepository>();
 
 var host = builder.Build();
 host.Run();
