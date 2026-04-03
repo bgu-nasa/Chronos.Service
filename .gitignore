@@ -1,3 +1,6 @@
+# DRS
+*.pptx
+
 # Project Chronos Specific Ignore:
 *.secret*
 *.cert*
