@@ -9,4 +9,6 @@ public interface ISubjectRepository
     Task AddAsync(Subject subject);
     Task UpdateAsync(Subject subject);
     Task DeleteAsync(Subject subject);
+    Task DeleteByDepartmentIdAsync(Guid departmentId);
+    Task DeleteBySchedulingPeriodIdAsync(Guid schedulingPeriodId);
 }

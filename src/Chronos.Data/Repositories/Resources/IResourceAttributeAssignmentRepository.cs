@@ -10,4 +10,6 @@ public interface IResourceAttributeAssignmentRepository
     Task UpdateAsync(ResourceAttributeAssignment resourceAttributeAssignment);
     Task DeleteAsync(ResourceAttributeAssignment resourceAttributeAssignment);
     Task<bool> ExistsAsync(Guid resourceId, Guid resourceAttributeId);
+    Task DeleteByResourceIdAsync(Guid resourceId);
+    Task DeleteByResourceAttributeIdAsync(Guid resourceAttributeId);
 }

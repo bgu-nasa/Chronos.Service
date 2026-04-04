@@ -37,6 +37,24 @@ public class SubjectRepository(AppDbContext context) : ISubjectRepository
         await context.SaveChangesAsync();
     }
 
+    public async Task DeleteByDepartmentIdAsync(Guid departmentId)
+    {
+        var subjects = await context.Subjects
+            .Where(s => s.DepartmentId == departmentId)
+            .ToListAsync();
+        context.Subjects.RemoveRange(subjects);
+        await context.SaveChangesAsync();
+    }
+
+    public async Task DeleteBySchedulingPeriodIdAsync(Guid schedulingPeriodId)
+    {
+        var subjects = await context.Subjects
+            .Where(s => s.SchedulingPeriodId == schedulingPeriodId)
+            .ToListAsync();
+        context.Subjects.RemoveRange(subjects);
+        await context.SaveChangesAsync();
+    }
+
     public async Task<bool> ExistsAsync(Guid id)
     {
         return await context.Subjects

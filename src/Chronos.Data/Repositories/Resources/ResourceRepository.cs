@@ -41,4 +41,13 @@ public class ResourceRepository(AppDbContext context) : IResourceRepository
         return await context.Resources
             .AnyAsync(r => r.Id == id);
     }
+
+    public async Task DeleteByResourceTypeIdAsync(Guid resourceTypeId)
+    {
+        var resources = await context.Resources
+            .Where(r => r.ResourceTypeId == resourceTypeId)
+            .ToListAsync();
+        context.Resources.RemoveRange(resources);
+        await context.SaveChangesAsync();
+    }
 }

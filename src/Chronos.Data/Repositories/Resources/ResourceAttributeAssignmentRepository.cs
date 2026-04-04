@@ -41,4 +41,22 @@ public class ResourceAttributeAssignmentRepository(AppDbContext context) : IReso
         return await context.ResourceAttributeAssignments
             .AnyAsync(raa => raa.ResourceId == resourceId && raa.ResourceAttributeId == resourceAttributeId);
     }
+
+    public async Task DeleteByResourceIdAsync(Guid resourceId)
+    {
+        var assignments = await context.ResourceAttributeAssignments
+            .Where(raa => raa.ResourceId == resourceId)
+            .ToListAsync();
+        context.ResourceAttributeAssignments.RemoveRange(assignments);
+        await context.SaveChangesAsync();
+    }
+
+    public async Task DeleteByResourceAttributeIdAsync(Guid resourceAttributeId)
+    {
+        var assignments = await context.ResourceAttributeAssignments
+            .Where(raa => raa.ResourceAttributeId == resourceAttributeId)
+            .ToListAsync();
+        context.ResourceAttributeAssignments.RemoveRange(assignments);
+        await context.SaveChangesAsync();
+    }
 }

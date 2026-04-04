@@ -9,4 +9,6 @@ public interface IActivityRepository
     Task AddAsync(Activity activity);
     Task UpdateAsync(Activity activity);
     Task DeleteAsync(Activity activity);
+    Task DeleteBySubjectIdAsync(Guid subjectId);
+    Task DeleteByAssignedUserIdAsync(Guid assignedUserId);
 }
