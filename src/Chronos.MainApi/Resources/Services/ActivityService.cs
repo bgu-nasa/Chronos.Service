@@ -98,4 +98,24 @@ public class ActivityService(
 
         logger.LogInformation("Activity deleted successfully. OrganizationId: {OrganizationId}, ActivityId: {ActivityId}", organizationId, activityId);
     }
+
+    public async Task DeleteActivitiesBySubjectIdAsync(Guid organizationId, Guid subjectId)
+    {
+        logger.LogInformation("Deleting activities by subject. OrganizationId: {OrganizationId}, SubjectId: {SubjectId}", organizationId, subjectId);
+
+        await validationService.ValidationOrganizationAsync(organizationId);
+        await activityRepository.DeleteBySubjectIdAsync(subjectId);
+
+        logger.LogInformation("Activities deleted successfully by subject. SubjectId: {SubjectId}, OrganizationId: {OrganizationId}", subjectId, organizationId);
+    }
+
+    public async Task DeleteActivitiesByAssignedUserIdAsync(Guid organizationId, Guid assignedUserId)
+    {
+        logger.LogInformation("Deleting activities by assigned user. OrganizationId: {OrganizationId}, AssignedUserId: {AssignedUserId}", organizationId, assignedUserId);
+
+        await validationService.ValidationOrganizationAsync(organizationId);
+        await activityRepository.DeleteByAssignedUserIdAsync(assignedUserId);
+
+        logger.LogInformation("Activities deleted successfully by assigned user. AssignedUserId: {AssignedUserId}, OrganizationId: {OrganizationId}", assignedUserId, organizationId);
+    }
 }

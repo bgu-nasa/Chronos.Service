@@ -9,4 +9,6 @@ public interface IResourceAttributeAssignmentService
     Task<List<ResourceAttributeAssignment>> GetAllResourceAttributeAssignmentsAsync(Guid organizationId);
     Task UpdateResourceAttributeAssignmentAsync(Guid resourceId, Guid resourceAttributeId, Guid organizationId);
     Task DeleteResourceAttributeAssignmentAsync(Guid resourceId, Guid resourceAttributeId, Guid organizationId);
+    Task DeleteResourceAttributeAssignmentsByResourceIdAsync(Guid organizationId, Guid resourceId);
+    Task DeleteResourceAttributeAssignmentsByResourceAttributeIdAsync(Guid organizationId, Guid resourceAttributeId);
 }

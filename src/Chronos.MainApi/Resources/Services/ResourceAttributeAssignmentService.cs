@@ -79,4 +79,24 @@ public class ResourceAttributeAssignmentService(
 
         logger.LogInformation("Resource attribute assignment deleted successfully. ResourceId: {ResourceId}, ResourceAttributeId: {ResourceAttributeId}, OrganizationId: {OrganizationId}", resourceId, resourceAttributeId, organizationId);
     }
+
+    public async Task DeleteResourceAttributeAssignmentsByResourceIdAsync(Guid organizationId, Guid resourceId)
+    {
+        logger.LogInformation("Deleting resource attribute assignments by resource. OrganizationId: {OrganizationId}, ResourceId: {ResourceId}", organizationId, resourceId);
+
+        await validationService.ValidationOrganizationAsync(organizationId);
+        await resourceAttributeAssignmentRepository.DeleteByResourceIdAsync(resourceId);
+
+        logger.LogInformation("Resource attribute assignments deleted successfully by resource. ResourceId: {ResourceId}, OrganizationId: {OrganizationId}", resourceId, organizationId);
+    }
+
+    public async Task DeleteResourceAttributeAssignmentsByResourceAttributeIdAsync(Guid organizationId, Guid resourceAttributeId)
+    {
+        logger.LogInformation("Deleting resource attribute assignments by resource attribute. OrganizationId: {OrganizationId}, ResourceAttributeId: {ResourceAttributeId}", organizationId, resourceAttributeId);
+
+        await validationService.ValidationOrganizationAsync(organizationId);
+        await resourceAttributeAssignmentRepository.DeleteByResourceAttributeIdAsync(resourceAttributeId);
+
+        logger.LogInformation("Resource attribute assignments deleted successfully by resource attribute. ResourceAttributeId: {ResourceAttributeId}, OrganizationId: {OrganizationId}", resourceAttributeId, organizationId);
+    }
 }

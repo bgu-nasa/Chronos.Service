@@ -82,6 +82,15 @@ public class ResourceService(
         await resourceRepository.DeleteAsync(resource);
 
         logger.LogInformation("Resource deleted successfully. ResourceId: {ResourceId}, OrganizationId: {OrganizationId}", resource.Id, organizationId);
+    }
 
+    public async Task DeleteResourcesByResourceTypeIdAsync(Guid organizationId, Guid resourceTypeId)
+    {
+        logger.LogInformation("Deleting resources by resource type. OrganizationId: {OrganizationId}, ResourceTypeId: {ResourceTypeId}", organizationId, resourceTypeId);
+
+        await validationService.ValidationOrganizationAsync(organizationId);
+        await resourceRepository.DeleteByResourceTypeIdAsync(resourceTypeId);
+
+        logger.LogInformation("Resources deleted successfully by resource type. ResourceTypeId: {ResourceTypeId}, OrganizationId: {OrganizationId}", resourceTypeId, organizationId);
     }
 }

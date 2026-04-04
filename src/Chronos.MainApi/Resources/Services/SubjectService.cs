@@ -97,4 +97,24 @@ public class SubjectService(
 
         logger.LogInformation("Subject deleted successfully. SubjectId: {SubjectId}", subjectId);
     }
+
+    public async Task DeleteSubjectsByDepartmentIdAsync(Guid organizationId, Guid departmentId)
+    {
+        logger.LogInformation("Deleting subjects by department. OrganizationId: {OrganizationId}, DepartmentId: {DepartmentId}", organizationId, departmentId);
+
+        await validationService.ValidationOrganizationAsync(organizationId);
+        await subjectRepository.DeleteByDepartmentIdAsync(departmentId);
+
+        logger.LogInformation("Subjects deleted successfully by department. DepartmentId: {DepartmentId}, OrganizationId: {OrganizationId}", departmentId, organizationId);
+    }
+
+    public async Task DeleteSubjectsBySchedulingPeriodIdAsync(Guid organizationId, Guid schedulingPeriodId)
+    {
+        logger.LogInformation("Deleting subjects by scheduling period. OrganizationId: {OrganizationId}, SchedulingPeriodId: {SchedulingPeriodId}", organizationId, schedulingPeriodId);
+
+        await validationService.ValidationOrganizationAsync(organizationId);
+        await subjectRepository.DeleteBySchedulingPeriodIdAsync(schedulingPeriodId);
+
+        logger.LogInformation("Subjects deleted successfully by scheduling period. SchedulingPeriodId: {SchedulingPeriodId}, OrganizationId: {OrganizationId}", schedulingPeriodId, organizationId);
+    }
 }

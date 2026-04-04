@@ -9,4 +9,5 @@ public interface IResourceService
     Task<List<Resource>> GetResourcesAsync(Guid organizationId);
     Task UpdateResourceAsync(Guid organizationId, Guid resourceId, Guid resourceTypeId, string location, string identifier, int? capacity);
     Task DeleteResourceAsync(Guid organizationId, Guid resourceId);
+    Task DeleteResourcesByResourceTypeIdAsync(Guid organizationId, Guid resourceTypeId);
 }

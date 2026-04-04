@@ -10,4 +10,6 @@ public interface ISubjectService
     Task<List<Subject>> GetSubjectsByDepartmentAsync(Guid organizationId, Guid departmentId);
     Task UpdateSubjectAsync(Guid organizationId, Guid subjectId, Guid departmentId, Guid schedulingPeriodId, string code, string name);
     Task DeleteSubjectAsync(Guid organizationId, Guid subjectId);
+    Task DeleteSubjectsByDepartmentIdAsync(Guid organizationId, Guid departmentId);
+    Task DeleteSubjectsBySchedulingPeriodIdAsync(Guid organizationId, Guid schedulingPeriodId);
 }

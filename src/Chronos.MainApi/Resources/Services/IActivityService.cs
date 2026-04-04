@@ -10,4 +10,6 @@ public interface IActivityService
     Task<List<Activity>> GetActivitiesBySubjectAsync(Guid organizationId, Guid subjectId);
     Task UpdateActivityAsync(Guid organizationId, Guid activityId, Guid subjectId, Guid assignedUserId, string activityType, int? expectedStudents);
     Task DeleteActivityAsync(Guid organizationId, Guid activityId);
+    Task DeleteActivitiesBySubjectIdAsync(Guid organizationId, Guid subjectId);
+    Task DeleteActivitiesByAssignedUserIdAsync(Guid organizationId, Guid assignedUserId);
 }
