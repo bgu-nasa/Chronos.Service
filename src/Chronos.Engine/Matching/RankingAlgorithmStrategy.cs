@@ -60,7 +60,14 @@ public class RankingAlgorithmStrategy(
         try
         {
             var startTime = DateTime.UtcNow;
-            _logger.LogDebug("Starting Ranking Algorithm execution at {StartTime}", startTime);
+            _logger.LogInformation("Starting Ranking Algorithm execution at {StartTime}", startTime);
+
+            // Delete all existing assignments for this period (Engine has no org filter, so we see and delete everything)
+            await _assignmentRepository.DeleteBySchedulingPeriodIdAsync(periodRequest.SchedulingPeriodId);
+            _logger.LogInformation(
+                "Deleted all existing assignments for period {PeriodId} before batch run",
+                periodRequest.SchedulingPeriodId
+            );
 
             // Step 1: Load all activities for the scheduling period
             var activities = await LoadActivitiesForPeriodAsync(periodRequest.OrganizationId, periodRequest.SchedulingPeriodId);
@@ -226,7 +233,7 @@ public class RankingAlgorithmStrategy(
         var unscheduledActivities = new List<Guid>();
         var occupiedPairs = new HashSet<(Guid SlotId, Guid ResourceId)>();
 
-        _logger.LogDebug(
+        _logger.LogInformation(
             "Processing {ActivityCount} activities with {PairCount} ranked pairs",
             activities.Count,
             rankedPairs.Count
@@ -247,7 +254,7 @@ public class RankingAlgorithmStrategy(
                 break;
             }
 
-            _logger.LogDebug(
+            _logger.LogInformation(
                 "Processing Activity {ActivityId} ({Index}/{Total})",
                 activity.Id,
                 activityIndex,
@@ -327,7 +334,7 @@ public class RankingAlgorithmStrategy(
                 continue;
             }
 
-            _logger.LogDebug(
+            _logger.LogInformation(
                 "Found {CandidateCount} valid candidates for Activity {ActivityId}",
                 validCandidates.Count,
                 activity.Id
@@ -454,7 +461,7 @@ public class RankingAlgorithmStrategy(
 
             if (createdAssignments % 10 == 0)
             {
-                _logger.LogDebug(
+                _logger.LogInformation(
                     "Progress: {Created} assignments created, {Failed} failed, {Remaining} remaining",
                     createdAssignments,
                     unscheduledActivities.Count,

@@ -196,24 +196,24 @@ public class OnlineMatchingStrategy(
         _logger.LogInformation("Deleted current assignment for Activity {ActivityId}", activity.Id);
 
         // Step b: Load all current assignments for the scheduling period
-        _logger.LogDebug("Loading all current assignments for scheduling period");
+        _logger.LogInformation("Loading all current assignments for scheduling period");
         var allAssignments = await _assignmentRepository.GetAllAsync();
         var occupiedPairs = allAssignments.Select(a => (a.SlotId, a.ResourceId)).ToHashSet();
 
-        _logger.LogDebug(
+        _logger.LogInformation(
             "Found {OccupiedCount} occupied (Slot, Resource) pairs",
             occupiedPairs.Count
         );
 
         // Step c: Get available (Slot, Resource) pairs
-        _logger.LogDebug(
+        _logger.LogInformation(
             "Loading slots and resources for scheduling period {PeriodId}",
             schedulingPeriodId
         );
         var slots = await _slotRepository.GetBySchedulingPeriodIdAsync(schedulingPeriodId);
         var resources = await _resourceRepository.GetAllAsync();
 
-        _logger.LogDebug(
+        _logger.LogInformation(
             "Loaded {SlotCount} slots and {ResourceCount} resources",
             slots.Count,
             resources.Count
@@ -259,7 +259,7 @@ public class OnlineMatchingStrategy(
             }
         }
 
-        _logger.LogDebug(
+        _logger.LogInformation(
             "Filtering summary - Excluded by slot constraints: {ExcludedSlots}, by occupation: {ExcludedOccupied}, by capacity: {ExcludedCapacity}",
             excludedBySlotCount,
             excludedByOccupiedCount,
@@ -291,7 +291,7 @@ public class OnlineMatchingStrategy(
         }
 
         // Step e: Apply preference-weighted random selection
-        _logger.LogDebug(
+        _logger.LogInformation(
             "Calculating preference weights for {CandidateCount} candidates",
             availablePairs.Count
         );
@@ -309,7 +309,7 @@ public class OnlineMatchingStrategy(
         var maxWeight = weights.Length > 0 ? weights.Max() : 0;
         var minWeight = weights.Length > 0 ? weights.Min() : 0;
         var avgWeight = weights.Length > 0 ? weights.Average() : 0;
-        _logger.LogDebug(
+        _logger.LogInformation(
             "Weight calculation complete - Min: {Min:F2}, Max: {Max:F2}, Avg: {Avg:F2}",
             minWeight,
             maxWeight,

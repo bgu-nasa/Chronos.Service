@@ -1,10 +1,9 @@
 using System.Text;
 using System.Text.Json;
-using Chronos.Engine.Configuration;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 
-namespace Chronos.Engine.Messaging;
+namespace Chronos.MainApi.Schedule.Messaging;
 
 public class MessagePublisher(
     IRabbitMqConnectionFactory connectionFactory,
@@ -19,7 +18,7 @@ public class MessagePublisher(
     public Task PublishAsync<T>(T message, string routingKey)
         where T : class
     {
-        _logger.LogInformation(
+        _logger.LogDebug(
             "Publishing message of type {MessageType} with routing key {RoutingKey}",
             typeof(T).Name,
             routingKey
@@ -46,7 +45,7 @@ public class MessagePublisher(
                 body: body
             );
 
-            _logger.LogInformation(
+            _logger.LogDebug(
                 "Published message of type {MessageType} to exchange {Exchange} with routing key {RoutingKey}",
                 typeof(T).Name,
                 _options.ExchangeName,

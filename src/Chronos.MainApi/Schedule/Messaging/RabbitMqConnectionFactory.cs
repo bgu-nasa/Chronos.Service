@@ -1,8 +1,7 @@
-using Chronos.Engine.Configuration;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 
-namespace Chronos.Engine.Messaging;
+namespace Chronos.MainApi.Schedule.Messaging;
 
 public class RabbitMqConnectionFactory(
     IOptions<RabbitMqOptions> options,
@@ -57,7 +56,7 @@ public class RabbitMqConnectionFactory(
 
     public IModel CreateChannel()
     {
-        _logger.LogInformation("Creating new RabbitMQ channel");
+        _logger.LogDebug("Creating new RabbitMQ channel");
         var connection = CreateConnection();
         var channel = connection.CreateModel();
 
@@ -101,7 +100,7 @@ public class RabbitMqConnectionFactory(
             routingKey: "request.online"
         );
 
-        _logger.LogInformation("RabbitMQ channel created with queues configured");
+        _logger.LogDebug("RabbitMQ channel created with queues configured");
 
         return channel;
     }
