@@ -10,4 +10,5 @@ public interface ISubjectRepository
     Task UpdateAsync(Subject subject);
     Task DeleteAsync(Subject subject);
     Task<int> DeleteAllByOrganizationIdAsync(Guid organizationId, CancellationToken ct = default);
+    Task<int> DeleteAllByDepartmentIdAsync(Guid departmentId, CancellationToken ct = default);
 }

@@ -48,6 +48,22 @@ public class ActivityRepository(AppDbContext context) : IActivityRepository
         return activities.Count;
     }
 
+    public async Task<int> DeleteAllByDepartmentIdAsync(Guid departmentId, CancellationToken ct = default)
+    {
+        var subjectIds = await context.Subjects
+            .IgnoreQueryFilters()
+            .Where(s => s.DepartmentId == departmentId)
+            .Select(s => s.Id)
+            .ToListAsync(ct);
+        var activities = await context.Activities
+            .IgnoreQueryFilters()
+            .Where(a => subjectIds.Contains(a.SubjectId))
+            .ToListAsync(ct);
+        context.Activities.RemoveRange(activities);
+        await context.SaveChangesAsync(ct);
+        return activities.Count;
+    }
+
     public async Task<bool> ExistsAsync(Guid id)
     {
         return await context.Activities
