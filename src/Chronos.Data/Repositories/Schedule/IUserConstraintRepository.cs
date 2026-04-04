@@ -1,4 +1,4 @@
-﻿using Chronos.Domain.Schedule;
+using Chronos.Domain.Schedule;
 
 namespace Chronos.Data.Repositories.Schedule;
 public interface IUserConstraintRepository
@@ -18,6 +18,7 @@ public interface IUserConstraintRepository
     Task UpdateAsync(UserConstraint constraint);
 
     Task DeleteAsync(UserConstraint constraint);
+    Task<int> DeleteAllByOrganizationIdAsync(Guid organizationId, CancellationToken ct = default);
 
     Task<bool> ExistsAsync(Guid id);
 }

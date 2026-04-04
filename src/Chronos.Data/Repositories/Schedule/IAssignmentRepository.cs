@@ -21,6 +21,7 @@ public interface IAssignmentRepository
 
     Task DeleteAsync(Assignment assignment);
     Task DeleteBySchedulingPeriodIdAsync(Guid schedulingPeriodId);
+    Task<int> DeleteAllByOrganizationIdAsync(Guid organizationId, CancellationToken ct = default);
 
     Task<bool> ExistsAsync(Guid id);
 }

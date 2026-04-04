@@ -1,4 +1,4 @@
-﻿using Chronos.Data.Context;
+using Chronos.Data.Context;
 using Chronos.Domain.Schedule;
 using Microsoft.EntityFrameworkCore;
 
@@ -41,6 +41,17 @@ namespace Chronos.Data.Repositories.Schedule
         {
             context.SchedulingPeriods.Remove(schedulingPeriod);
             await context.SaveChangesAsync();
+        }
+
+        public async Task<int> DeleteAllByOrganizationIdAsync(Guid organizationId, CancellationToken ct = default)
+        {
+            var schedulingPeriods = await context.SchedulingPeriods
+                .IgnoreQueryFilters()
+                .Where(sp => sp.OrganizationId == organizationId)
+                .ToListAsync(ct);
+            context.SchedulingPeriods.RemoveRange(schedulingPeriods);
+            await context.SaveChangesAsync(ct);
+            return schedulingPeriods.Count;
         }
 
         public async Task<bool> ExistsAsync(Guid id)

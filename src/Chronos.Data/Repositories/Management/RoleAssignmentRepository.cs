@@ -42,4 +42,15 @@ public class RoleAssignmentRepository(AppDbContext context) : IRoleAssignmentRep
             await context.SaveChangesAsync(cancellationToken);
         }
     }
+
+    public async Task<int> DeleteAllByOrganizationIdAsync(Guid organizationId, CancellationToken ct = default)
+    {
+        var roleAssignments = await context.RoleAssignments
+            .IgnoreQueryFilters()
+            .Where(ra => ra.OrganizationId == organizationId)
+            .ToListAsync(ct);
+        context.RoleAssignments.RemoveRange(roleAssignments);
+        await context.SaveChangesAsync(ct);
+        return roleAssignments.Count;
+    }
 }

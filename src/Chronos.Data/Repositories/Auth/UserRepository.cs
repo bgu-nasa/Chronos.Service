@@ -1,4 +1,4 @@
-﻿using Chronos.Data.Context;
+using Chronos.Data.Context;
 using Chronos.Domain.Auth;
 using Microsoft.EntityFrameworkCore;
 
@@ -49,6 +49,17 @@ public class UserRepository(AppDbContext context) : IUserRepository
     {
         context.Users.Remove(user);
         await context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<int> DeleteAllByOrganizationIdAsync(Guid organizationId, CancellationToken ct = default)
+    {
+        var users = await context.Users
+            .IgnoreQueryFilters()
+            .Where(u => u.OrganizationId == organizationId)
+            .ToListAsync(ct);
+        context.Users.RemoveRange(users);
+        await context.SaveChangesAsync(ct);
+        return users.Count;
     }
 
     public async Task<bool> ExistsAsync(Guid id, CancellationToken cancellationToken = default)

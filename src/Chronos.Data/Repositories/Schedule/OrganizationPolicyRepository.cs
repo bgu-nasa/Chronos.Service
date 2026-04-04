@@ -1,4 +1,4 @@
-﻿using Chronos.Data.Context;
+using Chronos.Data.Context;
 using Chronos.Domain.Schedule;
 using Microsoft.EntityFrameworkCore;
 
@@ -42,6 +42,17 @@ public class OrganizationPolicyRepository(AppDbContext context) : IOrganizationP
     {
         context.OrganizationPolicies.Remove(policy);
         await context.SaveChangesAsync();
+    }
+
+    public async Task<int> DeleteAllByOrganizationIdAsync(Guid organizationId, CancellationToken ct = default)
+    {
+        var organizationPolicies = await context.OrganizationPolicies
+            .IgnoreQueryFilters()
+            .Where(p => p.OrganizationId == organizationId)
+            .ToListAsync(ct);
+        context.OrganizationPolicies.RemoveRange(organizationPolicies);
+        await context.SaveChangesAsync(ct);
+        return organizationPolicies.Count;
     }
 
     public async Task<bool> ExistsAsync(Guid id)

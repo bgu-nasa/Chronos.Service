@@ -80,6 +80,17 @@ public class AssignmentRepository(AppDbContext context) : IAssignmentRepository
         await context.SaveChangesAsync();
     }
 
+    public async Task<int> DeleteAllByOrganizationIdAsync(Guid organizationId, CancellationToken ct = default)
+    {
+        var assignments = await context.Assignments
+            .IgnoreQueryFilters()
+            .Where(a => a.OrganizationId == organizationId)
+            .ToListAsync(ct);
+        context.Assignments.RemoveRange(assignments);
+        await context.SaveChangesAsync(ct);
+        return assignments.Count;
+    }
+
     public async Task<bool> ExistsAsync(Guid id)
     {
         return await context.Assignments

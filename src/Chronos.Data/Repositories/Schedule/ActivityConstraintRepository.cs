@@ -1,4 +1,4 @@
-﻿using Chronos.Data.Context;
+using Chronos.Data.Context;
 using Chronos.Domain.Schedule;
 using Microsoft.EntityFrameworkCore;
 
@@ -40,6 +40,17 @@ public class ActivityConstraintRepository(AppDbContext context) : IActivityConst
     {
         context.ActivityConstraints.Remove(constraint);
         await context.SaveChangesAsync();
+    }
+
+    public async Task<int> DeleteAllByOrganizationIdAsync(Guid organizationId, CancellationToken ct = default)
+    {
+        var activityConstraints = await context.ActivityConstraints
+            .IgnoreQueryFilters()
+            .Where(ac => ac.OrganizationId == organizationId)
+            .ToListAsync(ct);
+        context.ActivityConstraints.RemoveRange(activityConstraints);
+        await context.SaveChangesAsync(ct);
+        return activityConstraints.Count;
     }
 
     public async Task<bool> ExistsAsync(Guid id)
