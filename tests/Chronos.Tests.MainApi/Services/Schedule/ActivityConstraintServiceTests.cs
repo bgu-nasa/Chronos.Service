@@ -1,5 +1,8 @@
 using Chronos.Data.Repositories.Schedule;
+using Chronos.Data.Repositories.Resources;
 using Chronos.Domain.Schedule;
+using Chronos.Domain.Resources;
+using Chronos.MainApi.Schedule.Messaging;
 using Chronos.MainApi.Schedule.Services;
 using Chronos.MainApi.Shared.ExternalMangement;
 using Chronos.Shared.Exceptions;
@@ -13,7 +16,10 @@ namespace Chronos.Tests.MainApi.Services.Schedule;
 public class ActivityConstraintServiceTests
 {
     private IActivityConstraintRepository _activityConstraintRepository = null!;
+    private IActivityRepository _activityRepository = null!;
+    private ISubjectRepository _subjectRepository = null!;
     private IManagementExternalService _validationService = null!;
+    private IMessagePublisher _messagePublisher = null!;
     private ILogger<ActivityConstraintService> _logger = null!;
     private ActivityConstraintService _service = null!;
 
@@ -21,13 +27,19 @@ public class ActivityConstraintServiceTests
     public void SetUp()
     {
         _activityConstraintRepository = Substitute.For<IActivityConstraintRepository>();
+        _activityRepository = Substitute.For<IActivityRepository>();
+        _subjectRepository = Substitute.For<ISubjectRepository>();
         _validationService = Substitute.For<IManagementExternalService>();
+        _messagePublisher = Substitute.For<IMessagePublisher>();
         _logger = Substitute.For<ILogger<ActivityConstraintService>>();
 
         _service = new ActivityConstraintService(
             _activityConstraintRepository,
             _logger,
-            _validationService);
+            _validationService,
+            _messagePublisher,
+            _activityRepository,
+            _subjectRepository);
     }
 
     #region CreateActivityConstraintAsync Tests
@@ -41,6 +53,23 @@ public class ActivityConstraintServiceTests
         var value = """{"limit": 30}""";
 
         _validationService.ValidateOrganizationAsync(organizationId).Returns(Task.CompletedTask);
+        _activityRepository.GetByIdAsync(activityId).Returns(new Activity
+        {
+            Id = activityId,
+            OrganizationId = organizationId,
+            SubjectId = Guid.NewGuid(),
+            AssignedUserId = Guid.Empty,
+            ActivityType = "Lecture"
+        });
+        _subjectRepository.GetByIdAsync(Arg.Any<Guid>()).Returns(new Subject
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = organizationId,
+            DepartmentId = Guid.NewGuid(),
+            SchedulingPeriodId = Guid.NewGuid(),
+            Code = "MATH101",
+            Name = "Math"
+        });
 
         var result = await _service.CreateActivityConstraintAsync(organizationId, activityId, key, value);
 
@@ -50,6 +79,7 @@ public class ActivityConstraintServiceTests
             c.ActivityId == activityId &&
             c.Key == key &&
             c.Value == value));
+        await _messagePublisher.Received(1).PublishAsync(Arg.Any<Chronos.Domain.Schedule.Messages.HandleConstraintChangeRequest>(), "request.online");
     }
 
     [Test]

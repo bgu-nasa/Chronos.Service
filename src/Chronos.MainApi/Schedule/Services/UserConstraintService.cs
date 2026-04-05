@@ -1,5 +1,7 @@
 using Chronos.Data.Repositories.Schedule;
 using Chronos.Domain.Schedule;
+using Chronos.Domain.Schedule.Messages;
+using Chronos.MainApi.Schedule.Messaging;
 using Chronos.MainApi.Shared.ExternalMangement;
 using Chronos.Shared.Exceptions;
 
@@ -7,7 +9,8 @@ namespace Chronos.MainApi.Schedule.Services;
 public class UserConstraintService(
     IUserConstraintRepository userConstraintRepository,
     IManagementExternalService validationService,
-    ILogger<UserConstraintService> logger) : IUserConstraintService
+    ILogger<UserConstraintService> logger,
+    IMessagePublisher messagePublisher) : IUserConstraintService
 {
     public async Task<Guid> CreateUserConstraintAsync(Guid organizationId, Guid userId, Guid schedulingPeriodId, string key, string value)
     {
@@ -22,6 +25,21 @@ public class UserConstraintService(
             Value = value
         };
         await userConstraintRepository.AddAsync(constraint);
+
+        await messagePublisher.PublishAsync(
+            new HandleConstraintChangeRequest(
+                ActivityConstraintId: constraint.Id,
+                OrganizationId: organizationId,
+                SchedulingPeriodId: schedulingPeriodId,
+                Scope: ConstraintScope.User,
+                Operation: ConstraintChangeOperation.Created,
+                ActivityId: null,
+                UserId: userId,
+                Mode: SchedulingMode.Online
+            ),
+            "request.online"
+        );
+
         logger.LogInformation("Created UserConstraint {UserConstraintId} for Organization {OrganizationId}", constraint.Id, organizationId);
         return constraint.Id;
     }
@@ -81,6 +99,21 @@ public class UserConstraintService(
         constraint.Key = key;
         constraint.Value = value;
         await userConstraintRepository.UpdateAsync(constraint);
+
+        await messagePublisher.PublishAsync(
+            new HandleConstraintChangeRequest(
+                ActivityConstraintId: constraint.Id,
+                OrganizationId: organizationId,
+                SchedulingPeriodId: constraint.SchedulingPeriodId,
+                Scope: ConstraintScope.User,
+                Operation: ConstraintChangeOperation.Updated,
+                ActivityId: null,
+                UserId: constraint.UserId,
+                Mode: SchedulingMode.Online
+            ),
+            "request.online"
+        );
+
         logger.LogInformation("Updated UserConstraint {UserConstraintId} for Organization {OrganizationId}", userConstraintId, organizationId);
     }
     
@@ -89,6 +122,21 @@ public class UserConstraintService(
         logger.LogInformation("Deleting UserConstraint {UserConstraintId} for Organization {OrganizationId}", userConstraintId, organizationId);
         var constraint = await ValidateAndGetUserConstraintAsync(organizationId, userConstraintId);
         await userConstraintRepository.DeleteAsync(constraint);
+
+        await messagePublisher.PublishAsync(
+            new HandleConstraintChangeRequest(
+                ActivityConstraintId: constraint.Id,
+                OrganizationId: organizationId,
+                SchedulingPeriodId: constraint.SchedulingPeriodId,
+                Scope: ConstraintScope.User,
+                Operation: ConstraintChangeOperation.Deleted,
+                ActivityId: null,
+                UserId: constraint.UserId,
+                Mode: SchedulingMode.Online
+            ),
+            "request.online"
+        );
+
         logger.LogInformation("Deleted UserConstraint {UserConstraintId} for Organization {OrganizationId}", userConstraintId, organizationId);
     }
 

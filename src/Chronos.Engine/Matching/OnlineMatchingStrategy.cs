@@ -1,10 +1,11 @@
-using Chronos.Data.Repositories.Resources;
+using Chronos.Data.Context;
 using Chronos.Data.Repositories.Schedule;
 using Chronos.Domain.Resources;
 using Chronos.Domain.Schedule;
 using Chronos.Domain.Schedule.Messages;
 using Chronos.Engine.Constraints;
 using Chronos.Engine.Constraints.Evaluation;
+using Microsoft.EntityFrameworkCore;
 
 namespace Chronos.Engine.Matching;
 
@@ -13,26 +14,19 @@ namespace Chronos.Engine.Matching;
 /// Uses greedy re-matching with minimal disruption
 /// </summary>
 public class OnlineMatchingStrategy(
-    IActivityConstraintRepository activityConstraintRepository,
-    IActivityRepository activityRepository,
-    ISlotRepository slotRepository,
-    IResourceRepository resourceRepository,
     IAssignmentRepository assignmentRepository,
     IConstraintProcessor constraintProcessor,
     IConstraintEvaluator constraintEvaluator,
     PreferenceWeightedRanker ranker,
+    AppDbContext dbContext,
     ILogger<OnlineMatchingStrategy> logger
 ) : IMatchingStrategy
 {
-    private readonly IActivityConstraintRepository _activityConstraintRepository =
-        activityConstraintRepository;
-    private readonly IActivityRepository _activityRepository = activityRepository;
-    private readonly ISlotRepository _slotRepository = slotRepository;
-    private readonly IResourceRepository _resourceRepository = resourceRepository;
     private readonly IAssignmentRepository _assignmentRepository = assignmentRepository;
     private readonly IConstraintProcessor _constraintProcessor = constraintProcessor;
     private readonly IConstraintEvaluator _constraintEvaluator = constraintEvaluator;
     private readonly PreferenceWeightedRanker _ranker = ranker;
+    private readonly AppDbContext _dbContext = dbContext;
     private readonly ILogger<OnlineMatchingStrategy> _logger = logger;
 
     public SchedulingMode Mode => SchedulingMode.Online;
@@ -50,121 +44,23 @@ public class OnlineMatchingStrategy(
         }
 
         _logger.LogInformation(
-            "Starting Online Matching for constraint {ConstraintId} in period {PeriodId}",
+            "Starting Online Matching. ConstraintId: {ConstraintId}, Scope: {Scope}, Operation: {Operation}, PeriodId: {PeriodId}",
             constraintRequest.ActivityConstraintId,
+            constraintRequest.Scope,
+            constraintRequest.Operation,
             constraintRequest.SchedulingPeriodId
         );
 
         try
         {
-            // Step 1: Load the new constraint
-            var newConstraint = await _activityConstraintRepository.GetByIdAsync(
-                constraintRequest.ActivityConstraintId
-            );
-
-            if (newConstraint == null)
+            return constraintRequest.Scope switch
             {
-                _logger.LogError(
-                    "Constraint {ConstraintId} not found",
-                    constraintRequest.ActivityConstraintId
-                );
-
-                return new SchedulingResult(
-                    constraintRequest.ActivityConstraintId,
-                    false,
-                    0,
-                    0,
-                    new List<Guid>(),
-                    "Constraint not found"
-                );
-            }
-
-            _logger.LogInformation(
-                "Processing constraint {ConstraintKey}={ConstraintValue} for Activity {ActivityId}",
-                newConstraint.Key,
-                newConstraint.Value,
-                newConstraint.ActivityId
-            );
-
-            // Step 2: Get affected activity
-            var activity = await _activityRepository.GetByIdAsync(newConstraint.ActivityId);
-            if (activity == null)
-            {
-                _logger.LogError("Activity {ActivityId} not found", newConstraint.ActivityId);
-                return new SchedulingResult(
-                    constraintRequest.ActivityConstraintId,
-                    false,
-                    0,
-                    0,
-                    new List<Guid>(),
-                    "Activity not found"
-                );
-            }
-
-            // Step 3: Get current assignment for this activity
-            var currentAssignments = await _assignmentRepository.GetByActivityIdAsync(activity.Id);
-            var currentAssignment = currentAssignments.FirstOrDefault();
-
-            if (currentAssignment == null)
-            {
-                _logger.LogInformation(
-                    "Activity {ActivityId} has no current assignment. No action needed.",
-                    activity.Id
-                );
-
-                return new SchedulingResult(
-                    constraintRequest.ActivityConstraintId,
-                    true,
-                    0,
-                    0,
-                    new List<Guid>(),
-                    "Activity not currently assigned"
-                );
-            }
-
-            // Step 4: Check if current assignment is still valid
-            var excludedSlots = await _constraintProcessor.GetExcludedSlotIdsAsync(
-                activity.Id,
-                constraintRequest.OrganizationId,
-                activity.AssignedUserId != Guid.Empty ? activity.AssignedUserId : null,
-                constraintRequest.SchedulingPeriodId
-            );
-
-            bool isCurrentAssignmentValid = !excludedSlots.Contains(currentAssignment.SlotId);
-
-            if (isCurrentAssignmentValid)
-            {
-                _logger.LogInformation(
-                    "Current assignment for Activity {ActivityId} is still valid. No changes needed.",
-                    activity.Id
-                );
-
-                return new SchedulingResult(
-                    constraintRequest.ActivityConstraintId,
-                    true,
-                    0,
-                    0,
-                    new List<Guid>(),
-                    "Current assignment remains valid"
-                );
-            }
-
-            _logger.LogWarning(
-                "Current assignment for Activity {ActivityId} violates new constraint. Re-matching...",
-                activity.Id
-            );
-
-            // Step 5: Re-match the activity
-            var result = await RematchActivityAsync(
-                activity,
-                currentAssignment,
-                excludedSlots,
-                constraintRequest.OrganizationId,
-                constraintRequest.SchedulingPeriodId,
-                cancellationToken
-            );
-
-            return result;
+                ConstraintScope.User => await HandleUserConstraintChangeAsync(
+                    constraintRequest,
+                    cancellationToken
+                ),
+                _ => await HandleActivityConstraintChangeAsync(constraintRequest, cancellationToken),
+            };
         }
         catch (Exception ex)
         {
@@ -180,8 +76,235 @@ public class OnlineMatchingStrategy(
         }
     }
 
-    private async Task<SchedulingResult> RematchActivityAsync(
-        Domain.Resources.Activity activity,
+    private async Task<SchedulingResult> HandleActivityConstraintChangeAsync(
+        HandleConstraintChangeRequest request,
+        CancellationToken cancellationToken
+    )
+    {
+        var activityId = request.ActivityId;
+
+        if (!activityId.HasValue || activityId.Value == Guid.Empty)
+        {
+            var constraint = await _dbContext
+                .ActivityConstraints.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(c => c.Id == request.ActivityConstraintId, cancellationToken);
+            activityId = constraint?.ActivityId;
+        }
+
+        if (!activityId.HasValue || activityId.Value == Guid.Empty)
+        {
+            return new SchedulingResult(
+                request.ActivityConstraintId,
+                false,
+                0,
+                0,
+                new List<Guid>(),
+                "Activity id could not be resolved from constraint event"
+            );
+        }
+
+        var activity = await _dbContext
+            .Activities.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(
+                a => a.Id == activityId.Value && a.OrganizationId == request.OrganizationId,
+                cancellationToken
+            );
+        if (activity == null)
+        {
+            return new SchedulingResult(
+                request.ActivityConstraintId,
+                false,
+                0,
+                0,
+                new List<Guid>(),
+                "Activity not found"
+            );
+        }
+
+        var assignment = (await _assignmentRepository.GetByActivityIdAsync(activity.Id)).FirstOrDefault();
+        if (assignment == null)
+        {
+            return new SchedulingResult(
+                request.ActivityConstraintId,
+                true,
+                0,
+                0,
+                new List<Guid>(),
+                "Activity not currently assigned"
+            );
+        }
+
+        var schedulingPeriodId = await ResolveSchedulingPeriodIdAsync(request.SchedulingPeriodId, assignment);
+        if (schedulingPeriodId == Guid.Empty)
+        {
+            return new SchedulingResult(
+                request.ActivityConstraintId,
+                false,
+                0,
+                0,
+                new List<Guid> { activity.Id },
+                "Could not resolve scheduling period for assignment"
+            );
+        }
+
+        var excludedSlots = await GetExcludedSlotsAsync(
+            activity,
+            request.OrganizationId,
+            schedulingPeriodId
+        );
+
+        var isValid = await IsAssignmentValidAsync(activity, assignment, excludedSlots);
+        if (isValid)
+        {
+            return new SchedulingResult(
+                request.ActivityConstraintId,
+                true,
+                0,
+                0,
+                new List<Guid>(),
+                "Current assignment remains valid"
+            );
+        }
+
+        return await TryRescheduleAssignmentAsync(
+            request.ActivityConstraintId,
+            activity,
+            assignment,
+            excludedSlots,
+            request.OrganizationId,
+            schedulingPeriodId,
+            cancellationToken
+        );
+    }
+
+    private async Task<SchedulingResult> HandleUserConstraintChangeAsync(
+        HandleConstraintChangeRequest request,
+        CancellationToken cancellationToken
+    )
+    {
+        if (!request.UserId.HasValue || request.UserId.Value == Guid.Empty)
+        {
+            return new SchedulingResult(
+                request.ActivityConstraintId,
+                false,
+                0,
+                0,
+                new List<Guid>(),
+                "User-scope event missing user id"
+            );
+        }
+
+        if (request.SchedulingPeriodId == Guid.Empty)
+        {
+            return new SchedulingResult(
+                request.ActivityConstraintId,
+                false,
+                0,
+                0,
+                new List<Guid>(),
+                "User-scope event missing scheduling period id"
+            );
+        }
+
+        var assignments = await _assignmentRepository.GetBySchedulingPeriodIdAsync(
+            request.SchedulingPeriodId
+        );
+
+        if (!assignments.Any())
+        {
+            return new SchedulingResult(
+                request.ActivityConstraintId,
+                true,
+                0,
+                0,
+                new List<Guid>(),
+                "No assignments found in scheduling period"
+            );
+        }
+
+        var activityIds = assignments.Select(a => a.ActivityId).Distinct().ToList();
+        var activities = await _dbContext
+            .Activities.IgnoreQueryFilters()
+            .Where(a => a.OrganizationId == request.OrganizationId)
+            .Where(a => activityIds.Contains(a.Id))
+            .Where(a => a.AssignedUserId == request.UserId.Value)
+            .ToListAsync(cancellationToken);
+
+        var activitiesById = activities.ToDictionary(a => a.Id);
+        var affectedAssignments = assignments
+            .Where(a => activitiesById.ContainsKey(a.ActivityId))
+            .ToList();
+
+        if (!affectedAssignments.Any())
+        {
+            return new SchedulingResult(
+                request.ActivityConstraintId,
+                true,
+                0,
+                0,
+                new List<Guid>(),
+                "No assigned activities were affected by this user constraint"
+            );
+        }
+
+        var modifiedCount = 0;
+        var unresolvedActivityIds = new List<Guid>();
+
+        foreach (var assignment in affectedAssignments)
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                break;
+            }
+
+            var activity = activitiesById[assignment.ActivityId];
+            var excludedSlots = await GetExcludedSlotsAsync(
+                activity,
+                request.OrganizationId,
+                request.SchedulingPeriodId
+            );
+
+            var isValid = await IsAssignmentValidAsync(activity, assignment, excludedSlots);
+            if (isValid)
+            {
+                continue;
+            }
+
+            var rematchResult = await TryRescheduleAssignmentAsync(
+                request.ActivityConstraintId,
+                activity,
+                assignment,
+                excludedSlots,
+                request.OrganizationId,
+                request.SchedulingPeriodId,
+                cancellationToken
+            );
+
+            modifiedCount += rematchResult.AssignmentsModified;
+            if (!rematchResult.Success)
+            {
+                unresolvedActivityIds.Add(activity.Id);
+            }
+        }
+
+        var success = !unresolvedActivityIds.Any();
+        var reason = success
+            ? "User-constraint online validation completed"
+            : "Some activities could not be rescheduled according to the new constraint. Consider assigning a substitute lecturer or cancelling the affected activity.";
+
+        return new SchedulingResult(
+            request.ActivityConstraintId,
+            success,
+            0,
+            modifiedCount,
+            unresolvedActivityIds,
+            reason
+        );
+    }
+
+    private async Task<SchedulingResult> TryRescheduleAssignmentAsync(
+        Guid requestId,
+        Activity activity,
         Assignment currentAssignment,
         HashSet<Guid> excludedSlots,
         Guid organizationId,
@@ -191,166 +314,222 @@ public class OnlineMatchingStrategy(
     {
         _logger.LogInformation("Re-matching Activity {ActivityId}", activity.Id);
 
-        // Step a: Delete current assignment (free up the slot-resource pair)
-        await _assignmentRepository.DeleteAsync(currentAssignment);
-        _logger.LogInformation("Deleted current assignment for Activity {ActivityId}", activity.Id);
+        var allAssignments = await _assignmentRepository.GetBySchedulingPeriodIdAsync(schedulingPeriodId);
+        var occupiedPairs = allAssignments
+            .Where(a => a.Id != currentAssignment.Id)
+            .Select(a => (a.SlotId, a.ResourceId))
+            .ToHashSet();
 
-        // Step b: Load all current assignments for the scheduling period
-        _logger.LogInformation("Loading all current assignments for scheduling period");
-        var allAssignments = await _assignmentRepository.GetAllAsync();
-        var occupiedPairs = allAssignments.Select(a => (a.SlotId, a.ResourceId)).ToHashSet();
+        var slots = await _dbContext
+            .Slots.IgnoreQueryFilters()
+            .Where(s => s.SchedulingPeriodId == schedulingPeriodId)
+            .Where(s => s.OrganizationId == organizationId)
+            .ToListAsync(cancellationToken);
+        var resources = await _dbContext
+            .Resources.IgnoreQueryFilters()
+            .Where(r => r.OrganizationId == organizationId)
+            .ToListAsync(cancellationToken);
 
-        _logger.LogInformation(
-            "Found {OccupiedCount} occupied (Slot, Resource) pairs",
-            occupiedPairs.Count
+        // Stage A: try same slot with a different resource first.
+        var sameSlotCandidates = await BuildCandidatesAsync(
+            activity,
+            slots.Where(s => s.Id == currentAssignment.SlotId && !excludedSlots.Contains(s.Id)).ToList(),
+            resources,
+            occupiedPairs,
+            cancellationToken
         );
 
-        // Step c: Get available (Slot, Resource) pairs
-        _logger.LogInformation(
-            "Loading slots and resources for scheduling period {PeriodId}",
-            schedulingPeriodId
-        );
-        var slots = await _slotRepository.GetBySchedulingPeriodIdAsync(schedulingPeriodId);
-        var resources = await _resourceRepository.GetAllAsync();
-
-        _logger.LogInformation(
-            "Loaded {SlotCount} slots and {ResourceCount} resources",
-            slots.Count,
-            resources.Count
-        );
-
-        var availablePairs = new List<SlotResourcePair>();
-        var excludedBySlotCount = 0;
-        var excludedByOccupiedCount = 0;
-        var excludedByCapacityCount = 0;
-
-        foreach (var slot in slots)
+        if (sameSlotCandidates.Any())
         {
-            // Skip excluded slots
-            if (excludedSlots.Contains(slot.Id))
-            {
-                excludedBySlotCount++;
-                continue;
-            }
+            var sameSlotSelection = await SelectCandidateAsync(
+                sameSlotCandidates,
+                activity,
+                organizationId,
+                schedulingPeriodId
+            );
 
-            foreach (var resource in resources)
-            {
-                // Skip occupied pairs
-                if (occupiedPairs.Contains((slot.Id, resource.Id)))
-                {
-                    excludedByOccupiedCount++;
-                    continue;
-                }
+            currentAssignment.SlotId = sameSlotSelection.SlotId;
+            currentAssignment.ResourceId = sameSlotSelection.ResourceId;
+            await _assignmentRepository.UpdateAsync(currentAssignment);
 
-                // Check constraints (including required_capacity)
-                var canAssign = await _constraintEvaluator.CanAssignAsync(activity, slot, resource);
-                if (!canAssign)
-                {
-                    excludedByCapacityCount++;
-                    _logger.LogTrace(
-                        "Resource {ResourceId} excluded due to constraint violation for Activity {ActivityId}",
-                        resource.Id,
-                        activity.Id
-                    );
-                    continue;
-                }
-
-                availablePairs.Add(new SlotResourcePair(slot, resource));
-            }
+            return new SchedulingResult(
+                requestId,
+                true,
+                0,
+                1,
+                new List<Guid>(),
+                "Activity successfully re-matched within the same timeslot"
+            );
         }
 
-        _logger.LogInformation(
-            "Filtering summary - Excluded by slot constraints: {ExcludedSlots}, by occupation: {ExcludedOccupied}, by capacity: {ExcludedCapacity}",
-            excludedBySlotCount,
-            excludedByOccupiedCount,
-            excludedByCapacityCount
+        // Stage B: fallback to another slot and resource.
+        var fallbackCandidates = await BuildCandidatesAsync(
+            activity,
+            slots
+                .Where(s => s.Id != currentAssignment.SlotId)
+                .Where(s => !excludedSlots.Contains(s.Id))
+                .ToList(),
+            resources,
+            occupiedPairs,
+            cancellationToken
         );
 
-        _logger.LogInformation(
-            "Found {AvailableCount} available (Slot, Resource) pairs for Activity {ActivityId}",
-            availablePairs.Count,
-            activity.Id
-        );
-
-        // Step d: If no valid pairs exist, fail
-        if (!availablePairs.Any())
+        if (!fallbackCandidates.Any())
         {
             _logger.LogError(
-                "No available (Slot, Resource) pairs for Activity {ActivityId}. Manual intervention required.",
+                "No available replacement found for Activity {ActivityId}. Keeping current assignment and reporting unresolved change.",
                 activity.Id
             );
 
             return new SchedulingResult(
-                activity.Id,
+                requestId,
                 false,
                 0,
-                1, // 1 assignment was removed
+                0,
                 new List<Guid> { activity.Id },
-                "No valid slot-resource pairs available"
+                "Activity could not be rescheduled according to the new constraint. Keep current assignment for now and consider assigning a substitute lecturer or cancelling the activity."
             );
         }
 
-        // Step e: Apply preference-weighted random selection
-        _logger.LogInformation(
-            "Calculating preference weights for {CandidateCount} candidates",
-            availablePairs.Count
+        var fallbackSelection = await SelectCandidateAsync(
+            fallbackCandidates,
+            activity,
+            organizationId,
+            schedulingPeriodId
         );
-        var weights = new double[availablePairs.Count];
-        for (int i = 0; i < availablePairs.Count; i++)
+
+        currentAssignment.SlotId = fallbackSelection.SlotId;
+        currentAssignment.ResourceId = fallbackSelection.ResourceId;
+        await _assignmentRepository.UpdateAsync(currentAssignment);
+
+        _logger.LogInformation(
+            "Successfully re-matched Activity {ActivityId} using fallback stage - New assignment: Slot {SlotId}, Resource {ResourceId}",
+            activity.Id,
+            currentAssignment.SlotId,
+            currentAssignment.ResourceId
+        );
+
+        return new SchedulingResult(
+            requestId,
+            true,
+            0,
+            1,
+            new List<Guid>(),
+            "Activity successfully re-matched"
+        );
+    }
+
+    private async Task<List<SlotResourcePair>> BuildCandidatesAsync(
+        Activity activity,
+        List<Slot> slots,
+        List<Resource> resources,
+        HashSet<(Guid SlotId, Guid ResourceId)> occupiedPairs,
+        CancellationToken cancellationToken
+    )
+    {
+        var candidates = new List<SlotResourcePair>();
+
+        foreach (var slot in slots)
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                break;
+            }
+
+            foreach (var resource in resources)
+            {
+                if (occupiedPairs.Contains((slot.Id, resource.Id)))
+                {
+                    continue;
+                }
+
+                var canAssign = await _constraintEvaluator.CanAssignAsync(activity, slot, resource);
+                if (!canAssign)
+                {
+                    continue;
+                }
+
+                candidates.Add(new SlotResourcePair(slot, resource));
+            }
+        }
+
+        return candidates;
+    }
+
+    private async Task<SlotResourcePair> SelectCandidateAsync(
+        List<SlotResourcePair> candidates,
+        Activity activity,
+        Guid organizationId,
+        Guid schedulingPeriodId
+    )
+    {
+        var weights = new double[candidates.Count];
+        for (int i = 0; i < candidates.Count; i++)
         {
             weights[i] = await _ranker.CalculateWeightAsync(
-                availablePairs[i],
+                candidates[i],
                 activity.AssignedUserId,
                 organizationId,
                 schedulingPeriodId
             );
         }
 
-        var maxWeight = weights.Length > 0 ? weights.Max() : 0;
-        var minWeight = weights.Length > 0 ? weights.Min() : 0;
-        var avgWeight = weights.Length > 0 ? weights.Average() : 0;
-        _logger.LogInformation(
-            "Weight calculation complete - Min: {Min:F2}, Max: {Max:F2}, Avg: {Avg:F2}",
-            minWeight,
-            maxWeight,
-            avgWeight
-        );
+        return _ranker.SelectRandomWeighted(candidates, weights);
+    }
 
-        var selected = _ranker.SelectRandomWeighted(availablePairs, weights);
-
-        _logger.LogInformation(
-            "Selected new assignment for Activity {ActivityId}: {Candidate}",
+    private async Task<HashSet<Guid>> GetExcludedSlotsAsync(
+        Activity activity,
+        Guid organizationId,
+        Guid schedulingPeriodId
+    )
+    {
+        return await _constraintProcessor.GetExcludedSlotIdsAsync(
             activity.Id,
-            selected
-        );
-
-        // Step f: Create new assignment
-        var newAssignment = new Assignment
-        {
-            Id = Guid.NewGuid(),
-            OrganizationId = organizationId,
-            SlotId = selected.SlotId,
-            ResourceId = selected.ResourceId,
-            ActivityId = activity.Id,
-        };
-
-        await _assignmentRepository.AddAsync(newAssignment);
-
-        _logger.LogInformation(
-            "Successfully re-matched Activity {ActivityId} - New assignment: Slot {SlotId}, Resource {ResourceId}",
-            activity.Id,
-            newAssignment.SlotId,
-            newAssignment.ResourceId
-        );
-
-        return new SchedulingResult(
-            activity.Id,
-            true,
-            0, // No new assignments (replacement)
-            1, // 1 assignment modified
-            new List<Guid>(),
-            "Activity successfully re-matched"
+            organizationId,
+            activity.AssignedUserId != Guid.Empty ? activity.AssignedUserId : null,
+            schedulingPeriodId
         );
     }
 
+    private async Task<bool> IsAssignmentValidAsync(
+        Activity activity,
+        Assignment assignment,
+        HashSet<Guid> excludedSlots
+    )
+    {
+        if (excludedSlots.Contains(assignment.SlotId))
+        {
+            return false;
+        }
+
+        var slot = await _dbContext
+            .Slots.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(s => s.Id == assignment.SlotId);
+        var resource = await _dbContext
+            .Resources.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(r => r.Id == assignment.ResourceId);
+
+        if (slot == null || resource == null)
+        {
+            return false;
+        }
+
+        return await _constraintEvaluator.CanAssignAsync(activity, slot, resource);
+    }
+
+    private async Task<Guid> ResolveSchedulingPeriodIdAsync(
+        Guid requestedSchedulingPeriodId,
+        Assignment assignment
+    )
+    {
+        if (requestedSchedulingPeriodId != Guid.Empty)
+        {
+            return requestedSchedulingPeriodId;
+        }
+
+        var slot = await _dbContext
+            .Slots.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(s => s.Id == assignment.SlotId);
+        return slot?.SchedulingPeriodId ?? Guid.Empty;
+    }
 }
