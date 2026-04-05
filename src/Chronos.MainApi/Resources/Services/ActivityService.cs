@@ -9,20 +9,27 @@ public class ActivityService(
     ILogger<ActivityService> logger) : IActivityService
 {
     public async Task<Activity> CreateActivityAsync(Guid organizationId, Guid subjectId, Guid assignedUserId, string activityType,
-        int? expectedStudents)
+        int? expectedStudents, int duration)
     {
         logger.LogInformation("Creating activity. OrganizationId: {OrganizationId}, SubjectId: {SubjectId}, AssignedUserId: {AssignedUserId}, ActivityType: {ActivityType}, ExpectedStudents: {ExpectedStudents}",
             organizationId, subjectId, assignedUserId, activityType, expectedStudents);
+        
+        if(duration <= 0)
+        {
+            logger.LogWarning("Invalid activity duration. Duration must be greater than zero. OrganizationId: {OrganizationId}, Duration: {Duration}", organizationId, duration);
+            throw new ArgumentException("Duration must be greater than zero.", nameof(duration));
+        }
 
         await validationService.ValidationOrganizationAsync(organizationId);
-
+        
         var activity = new Activity
         {
             OrganizationId = organizationId,
             SubjectId = subjectId,
             AssignedUserId = assignedUserId,
             ActivityType = activityType,
-            ExpectedStudents = expectedStudents
+            ExpectedStudents = expectedStudents,
+            Duration = duration
         };
 
         await activityRepository.AddAsync(activity);
@@ -71,10 +78,16 @@ public class ActivityService(
     }
 
     public async Task UpdateActivityAsync(Guid organizationId, Guid activityId, Guid subjectId, Guid assignedUserId, string activityType,
-        int? expectedStudents)
+        int? expectedStudents, int duration)
     {
         logger.LogInformation("Updating activity. OrganizationId: {OrganizationId}, ActivityId: {ActivityId}, SubjectId: {SubjectId}, AssignedUserId: {AssignedUserId}, ActivityType: {ActivityType}, ExpectedStudents: {ExpectedStudents}",
             organizationId, activityId, subjectId, assignedUserId, activityType, expectedStudents);
+
+        if (duration <= 0)
+        {
+            logger.LogWarning("Invalid activity duration. Duration must be greater than zero. OrganizationId: {OrganizationId}, ActivityId: {ActivityId}, Duration: {Duration}", organizationId, activityId, duration);
+            throw new ArgumentException("Duration must be greater than zero.", nameof(duration));
+        }
 
         await validationService.ValidationOrganizationAsync(organizationId);
         var activity = await validationService.ValidateAndGetActivityAsync(organizationId,  activityId);
@@ -83,6 +96,7 @@ public class ActivityService(
         activity.AssignedUserId = assignedUserId;
         activity.ActivityType = activityType;
         activity.ExpectedStudents = expectedStudents;
+        activity.Duration = duration;
         await activityRepository.UpdateAsync(activity);
 
         logger.LogInformation("Activity updated successfully. ActivityId: {ActivityId}", activityId);

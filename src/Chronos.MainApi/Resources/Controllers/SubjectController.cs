@@ -105,7 +105,8 @@ public class SubjectController(
             request.SubjectId,
             request.AssignedUserId,
             request.ActivityType,
-            request.ExpectedStudents);
+            request.ExpectedStudents,
+            request.Duration);
         
         var response = activity.ToActivityResponse();
         
@@ -173,7 +174,8 @@ public class SubjectController(
             request.SubjectId,
             request.AssignedUserId,
             request.ActivityType,
-            request.ExpectedStudents);
+            request.ExpectedStudents,
+            request.Duration);
         
         return NoContent();
     }
