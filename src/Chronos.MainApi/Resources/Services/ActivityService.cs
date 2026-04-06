@@ -6,6 +6,7 @@ namespace Chronos.MainApi.Resources.Services;
 public class ActivityService(
     IActivityRepository activityRepository,
     ResourceValidationService validationService,
+    ISubjectService subjectService,
     ILogger<ActivityService> logger) : IActivityService
 {
     public async Task<Activity> CreateActivityAsync(Guid organizationId, Guid subjectId, Guid assignedUserId, string activityType,
@@ -15,7 +16,11 @@ public class ActivityService(
             organizationId, subjectId, assignedUserId, activityType, expectedStudents);
 
         await validationService.ValidationOrganizationAsync(organizationId);
-
+        var subject = await subjectService.GetSubjectAsync(organizationId, subjectId);
+        if (subject == null)
+        {
+            throw new Exception("Subject not found");
+        }
         var activity = new Activity
         {
             OrganizationId = organizationId,
@@ -67,6 +72,21 @@ public class ActivityService(
             .ToList();
 
         logger.LogDebug("Retrieved {Count} activities for subject. OrganizationId: {OrganizationId}, SubjectId: {SubjectId}", filteredActivities.Count, organizationId, subjectId);
+        return filteredActivities;
+    }
+
+    public async Task<List<Activity>> GetActivitiesBySchedulingPeriodAsync(Guid organizationId, Guid schedulingPeriodId)
+    {
+        logger.LogDebug("Retrieving activities for scheduling period. OrganizationId: {OrganizationId}, SchedulingPeriodId: {SchedulingPeriodId}", organizationId, schedulingPeriodId);
+
+        await validationService.ValidationOrganizationAsync(organizationId);
+
+        var allActivities =  await activityRepository.GetAllAsync();
+        var filteredActivities = allActivities
+            .Where(a => a.OrganizationId == organizationId &&  subjectService.GetSubjectAsync(organizationId, a.SubjectId).Result.SchedulingPeriodId == schedulingPeriodId)
+            .ToList();
+
+        logger.LogDebug("Retrieved {Count} activities for scheduling period. OrganizationId: {OrganizationId}, SchedulingPeriodId: {SchedulingPeriodId}", filteredActivities.Count, organizationId, schedulingPeriodId);
         return filteredActivities;
     }
 
