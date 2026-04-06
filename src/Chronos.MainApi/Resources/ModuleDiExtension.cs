@@ -8,6 +8,7 @@ public static class ModuleDiExtension
     {
         // Validation Service
         services.AddScoped<ResourceValidationService>();
+        services.AddScoped<IExternalSchedulingPeriodService, ExternalSchedulingPeriodService>();
 
         // Services
         services.AddScoped<ISubjectService, SubjectService>();

@@ -1,6 +1,9 @@
 using Chronos.Data.Context;
+using Chronos.Data.Repositories.Resources;
 using Chronos.Domain.Auth;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Conventions;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Chronos.Data.Repositories.Auth;
 
@@ -48,7 +51,17 @@ public class UserRepository(AppDbContext context) : IUserRepository
     public async Task DeleteAsync(User user, CancellationToken cancellationToken = default)
     {
         context.Users.Remove(user);
+        foreach (var activity in context.Activities.Where(a => a.AssignedUserId == user.Id))
+        {
+            context.Assignments.RemoveRange(context.Assignments.Where(a => a.ActivityId == activity.Id));
+            context.ActivityConstraints.RemoveRange(context.ActivityConstraints.Where(ac => ac.ActivityId == activity.Id));
+            context.Activities.Remove(activity);
+        }
+        context.UserConstraints.RemoveRange(context.UserConstraints.Where(uc => uc.UserId == user.Id));
+        context.UserPreferences.RemoveRange(context.UserPreferences.Where(up => up.UserId == user.Id));
+        context.RoleAssignments.RemoveRange(context.RoleAssignments.Where(ra => ra.UserId == user.Id));
         await context.SaveChangesAsync(cancellationToken);
+        
     }
 
     public async Task<int> DeleteAllByOrganizationIdAsync(Guid organizationId, CancellationToken ct = default)

@@ -6,6 +6,7 @@ namespace Chronos.MainApi.Resources.Services;
 public class SubjectService(
     ISubjectRepository subjectRepository,
     ResourceValidationService validationService,
+    IExternalSchedulingPeriodService externalSchedulingPeriodService,
     ILogger<SubjectService> logger) : ISubjectService
 {
     public async Task<Subject> CreateSubjectAsync(Guid organizationId, Guid departmentId, Guid schedulingPeriodId, string code, string name)
@@ -14,7 +15,8 @@ public class SubjectService(
             organizationId, departmentId, schedulingPeriodId, code, name);
 
         await validationService.ValidationOrganizationAsync(organizationId);
-
+        logger.LogInformation("Validating scheduling period for subject creation. OrganizationId: {OrganizationId}, SchedulingPeriodId: {SchedulingPeriodId}", organizationId, schedulingPeriodId);
+        await externalSchedulingPeriodService.ValidateSchedulingPeriodAsync(organizationId, schedulingPeriodId);
         var subject = new Subject
         {
             OrganizationId = organizationId,
