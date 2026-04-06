@@ -16,9 +16,13 @@ public class ActivityService(
             organizationId, subjectId, assignedUserId, activityType, expectedStudents);
 
         await validationService.ValidationOrganizationAsync(organizationId);
+
+        logger.LogInformation("Validating subject for activity creation. OrganizationId: {OrganizationId}, SubjectId: {SubjectId}", organizationId, subjectId);
         var subject = await subjectService.GetSubjectAsync(organizationId, subjectId);
+
         if (subject == null)
         {
+            logger.LogWarning("Subject not found for activity creation. OrganizationId: {OrganizationId}, SubjectId: {SubjectId}", organizationId, subjectId);
             throw new Exception("Subject not found");
         }
         var activity = new Activity
@@ -38,7 +42,7 @@ public class ActivityService(
 
     public async Task<Activity> GetActivityAsync(Guid organizationId, Guid activityId)
     {
-        logger.LogDebug("Retrieving activity. OrganizationId: {OrganizationId}, ActivityId: {ActivityId}", organizationId, activityId);
+        logger.LogInformation("Retrieving activity. OrganizationId: {OrganizationId}, ActivityId: {ActivityId}", organizationId, activityId);
 
         await validationService.ValidationOrganizationAsync(organizationId);
         var activity = await validationService.ValidateAndGetActivityAsync(organizationId, activityId);
@@ -47,8 +51,8 @@ public class ActivityService(
 
     public async Task<List<Activity>> GetActivitiesAsync(Guid organizationId)
     {
-        logger.LogDebug("Retrieving all activities for organization. OrganizationId: {OrganizationId}", organizationId);
-
+        logger.LogInformation("Retrieving all activities for organization. OrganizationId: {OrganizationId}", organizationId);
+    
         await validationService.ValidationOrganizationAsync(organizationId);
 
         var allActivities = await activityRepository.GetAllAsync();
@@ -56,13 +60,13 @@ public class ActivityService(
             .Where(a => a.OrganizationId == organizationId)
             .ToList();
 
-        logger.LogDebug("Retrieved {Count} activities for organization. OrganizationId: {OrganizationId}", filteredActivities.Count, organizationId);
+        logger.LogInformation("Retrieved {Count} activities for organization. OrganizationId: {OrganizationId}", filteredActivities.Count, organizationId);
         return filteredActivities;
     }
 
     public async Task<List<Activity>> GetActivitiesBySubjectAsync(Guid organizationId, Guid subjectId)
     {
-        logger.LogDebug("Retrieving activities for subject. OrganizationId: {OrganizationId}, SubjectId: {SubjectId}", organizationId, subjectId);
+        logger.LogInformation("Retrieving activities for subject. OrganizationId: {OrganizationId}, SubjectId: {SubjectId}", organizationId, subjectId);
 
         await validationService.ValidationOrganizationAsync(organizationId);
 
@@ -71,13 +75,13 @@ public class ActivityService(
             .Where(a => a.OrganizationId == organizationId && a.SubjectId == subjectId)
             .ToList();
 
-        logger.LogDebug("Retrieved {Count} activities for subject. OrganizationId: {OrganizationId}, SubjectId: {SubjectId}", filteredActivities.Count, organizationId, subjectId);
+        logger.LogInformation("Retrieved {Count} activities for subject. OrganizationId: {OrganizationId}, SubjectId: {SubjectId}", filteredActivities.Count, organizationId, subjectId);
         return filteredActivities;
     }
 
     public async Task<List<Activity>> GetActivitiesBySchedulingPeriodAsync(Guid organizationId, Guid schedulingPeriodId)
     {
-        logger.LogDebug("Retrieving activities for scheduling period. OrganizationId: {OrganizationId}, SchedulingPeriodId: {SchedulingPeriodId}", organizationId, schedulingPeriodId);
+        logger.LogInformation("Retrieving activities for scheduling period. OrganizationId: {OrganizationId}, SchedulingPeriodId: {SchedulingPeriodId}", organizationId, schedulingPeriodId);
 
         await validationService.ValidationOrganizationAsync(organizationId);
 
@@ -86,7 +90,7 @@ public class ActivityService(
             .Where(a => a.OrganizationId == organizationId &&  subjectService.GetSubjectAsync(organizationId, a.SubjectId).Result.SchedulingPeriodId == schedulingPeriodId)
             .ToList();
 
-        logger.LogDebug("Retrieved {Count} activities for scheduling period. OrganizationId: {OrganizationId}, SchedulingPeriodId: {SchedulingPeriodId}", filteredActivities.Count, organizationId, schedulingPeriodId);
+        logger.LogInformation("Retrieved {Count} activities for scheduling period. OrganizationId: {OrganizationId}, SchedulingPeriodId: {SchedulingPeriodId}", filteredActivities.Count, organizationId, schedulingPeriodId);
         return filteredActivities;
     }
 
