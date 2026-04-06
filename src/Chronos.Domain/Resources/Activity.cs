@@ -7,4 +7,5 @@ public class Activity : ObjectInformation
     public Guid AssignedUserId { get; set; }
     public required string ActivityType { get; set; }
     public int? ExpectedStudents { get; set; }
+    public int Duration { get; set; }
 }

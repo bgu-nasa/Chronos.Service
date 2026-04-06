@@ -5,4 +5,5 @@ public sealed record UpdateActivityRequest(
     Guid SubjectId,
     Guid AssignedUserId,
     string ActivityType,
-    int? ExpectedStudents);
+    int? ExpectedStudents,
+    int Duration);
