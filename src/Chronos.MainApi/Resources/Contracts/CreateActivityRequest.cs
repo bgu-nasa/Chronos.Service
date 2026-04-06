@@ -6,4 +6,5 @@ public sealed record CreateActivityRequest(
     Guid SubjectId,
     Guid AssignedUserId,
     string ActivityType,
-    int? ExpectedStudents);
+    int? ExpectedStudents,
+    int Duration);
