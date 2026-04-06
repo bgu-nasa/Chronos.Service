@@ -1,5 +1,6 @@
 using Chronos.Data.Repositories.Schedule;
 using Chronos.Domain.Schedule;
+using Chronos.MainApi.Schedule.Messaging;
 using Chronos.MainApi.Schedule.Services;
 using Chronos.MainApi.Shared.ExternalMangement;
 using Chronos.Shared.Exceptions;
@@ -14,6 +15,7 @@ public class UserConstraintServiceTests
 {
     private IUserConstraintRepository _userConstraintRepository = null!;
     private IManagementExternalService _validationService = null!;
+    private IMessagePublisher _messagePublisher = null!;
     private ILogger<UserConstraintService> _logger = null!;
     private UserConstraintService _service = null!;
 
@@ -22,12 +24,14 @@ public class UserConstraintServiceTests
     {
         _userConstraintRepository = Substitute.For<IUserConstraintRepository>();
         _validationService = Substitute.For<IManagementExternalService>();
+        _messagePublisher = Substitute.For<IMessagePublisher>();
         _logger = Substitute.For<ILogger<UserConstraintService>>();
 
         _service = new UserConstraintService(
             _userConstraintRepository,
             _validationService,
-            _logger);
+            _logger,
+            _messagePublisher);
     }
 
     #region CreateUserConstraintAsync Tests
@@ -52,6 +56,7 @@ public class UserConstraintServiceTests
             c.SchedulingPeriodId == schedulingPeriodId &&
             c.Key == key &&
             c.Value == value));
+        await _messagePublisher.Received(1).PublishAsync(Arg.Any<Chronos.Domain.Schedule.Messages.HandleConstraintChangeRequest>(), "request.online");
     }
 
     [Test]
