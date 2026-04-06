@@ -138,10 +138,23 @@ public class SubjectController(
     {
         logger.LogInformation("Get activities endpoint was called.");
         var organizationId = ControllerUtils.GetOrganizationIdAndFailIfMissing(HttpContext, logger);
-        
+
         var activities = await activityService.GetActivitiesAsync(organizationId);
         var activityResponses = activities.Select(a => a.ToActivityResponse()).ToList();
-        
+
+        return Ok(activityResponses);
+    }
+
+    [Authorize(Policy = "OrgRole:Viewer")]
+    [HttpGet("activities/scheduling-period/{schedulingPeriodId}")]
+    public async Task<IActionResult> GetActivitiesBySchedulingPeriodAsync(Guid schedulingPeriodId)
+    {
+        logger.LogInformation("Get activities by scheduling period endpoint was called for scheduling period {SchedulingPeriodId}", schedulingPeriodId);
+        var organizationId = ControllerUtils.GetOrganizationIdAndFailIfMissing(HttpContext, logger);
+
+        var activities = await activityService.GetActivitiesBySchedulingPeriodAsync(organizationId, schedulingPeriodId);
+        var activityResponses = activities.Select(a => a.ToActivityResponse()).ToList();
+
         return Ok(activityResponses);
     }
     
