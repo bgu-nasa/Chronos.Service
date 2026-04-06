@@ -6,6 +6,7 @@ public interface ISchedulingPeriodService
 {
     Task<Guid> CreateSchedulingPeriodAsync(Guid organizationId, string name, DateTime fromDate, DateTime toDate);
 
+    Task validateSchedulingPeriodAsync(Guid organizationId, Guid schedulingPeriodId);
     Task<SchedulingPeriod> GetSchedulingPeriodAsync(Guid organizationId, Guid schedulingPeriodId);
     
     Task<SchedulingPeriod> GetSchedulingPeriodByNameAsync(Guid organizationId, string name);
