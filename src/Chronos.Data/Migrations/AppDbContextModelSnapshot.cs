@@ -362,6 +362,9 @@ namespace Chronos.Data.Migrations
                     b.Property<Guid>("ActivityId")
                         .HasColumnType("uuid");
 
+                    b.Property<int?>("WeekNum")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -437,6 +440,9 @@ namespace Chronos.Data.Migrations
 
                     b.Property<Guid>("SchedulingPeriodId")
                         .HasColumnType("uuid");
+
+                    b.Property<int?>("WeekNum")
+                        .HasColumnType("integer");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");

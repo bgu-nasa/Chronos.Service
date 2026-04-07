@@ -21,7 +21,7 @@ public class ActivityConstraintService(
 {
 
 
-    public async Task<Guid> CreateActivityConstraintAsync(Guid organizationId, Guid activityId, string key, string value)
+    public async Task<Guid> CreateActivityConstraintAsync(Guid organizationId, Guid activityId, string key, string value, int? weekNum = null)
     {
         
         await validationService.ValidateOrganizationAsync(organizationId);
@@ -31,6 +31,7 @@ public class ActivityConstraintService(
             Id = Guid.NewGuid(),
             OrganizationId = organizationId,
             ActivityId = activityId,
+            WeekNum = weekNum,
             Key = key,
             Value = value
         };
@@ -84,11 +85,12 @@ public class ActivityConstraintService(
     }
 
     public async Task<ActivityConstraint> UpdateActivityConstraintAsync(Guid organizationId, Guid activityConstraintId,
-        string key, string value)
+        string key, string value, int? weekNum = null)
     {
         logger.LogInformation("Updating ActivityConstraint {ActivityConstraintId} for Organization {OrganizationId}", activityConstraintId, organizationId);
         ValidateConstraintValue(key, value);
         var constraint = await ValidateAndGetActivityConstraintAsync(organizationId, activityConstraintId);
+        constraint.WeekNum = weekNum;
         constraint.Key = key;
         constraint.Value = value;
         await activityConstraintRepository.UpdateAsync(constraint);

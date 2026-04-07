@@ -4,4 +4,5 @@ public record CreateUserConstraintRequest(
     Guid UserId,
     Guid SchedulingPeriodId,
     string Key,
-    string Value);
+    string Value,
+    int? WeekNum = null);

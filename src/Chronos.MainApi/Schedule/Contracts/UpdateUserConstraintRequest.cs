@@ -2,4 +2,5 @@ namespace Chronos.MainApi.Schedule.Contracts;
 
 public record UpdateUserConstraintRequest(
     string Key,
-    string Value);
+    string Value,
+    int? WeekNum = null);

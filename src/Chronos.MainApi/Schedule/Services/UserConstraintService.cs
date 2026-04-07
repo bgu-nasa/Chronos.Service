@@ -12,7 +12,7 @@ public class UserConstraintService(
     ILogger<UserConstraintService> logger,
     IMessagePublisher messagePublisher) : IUserConstraintService
 {
-    public async Task<Guid> CreateUserConstraintAsync(Guid organizationId, Guid userId, Guid schedulingPeriodId, string key, string value)
+    public async Task<Guid> CreateUserConstraintAsync(Guid organizationId, Guid userId, Guid schedulingPeriodId, string key, string value, int? weekNum = null)
     {
         await validationService.ValidateOrganizationAsync(organizationId);
         var constraint = new UserConstraint
@@ -21,6 +21,7 @@ public class UserConstraintService(
             OrganizationId = organizationId,
             UserId = userId,
             SchedulingPeriodId = schedulingPeriodId,
+            WeekNum = weekNum,
             Key = key,
             Value = value
         };
@@ -92,10 +93,11 @@ public class UserConstraintService(
         return orgConstraints;
     }
     
-    public async Task UpdateUserConstraintAsync(Guid organizationId, Guid userConstraintId, string key, string value)
+    public async Task UpdateUserConstraintAsync(Guid organizationId, Guid userConstraintId, string key, string value, int? weekNum = null)
     {
         logger.LogInformation("Updating UserConstraint {UserConstraintId} for Organization {OrganizationId}", userConstraintId, organizationId);
         var constraint = await ValidateAndGetUserConstraintAsync(organizationId, userConstraintId);
+        constraint.WeekNum = weekNum;
         constraint.Key = key;
         constraint.Value = value;
         await userConstraintRepository.UpdateAsync(constraint);
