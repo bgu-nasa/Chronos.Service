@@ -8,6 +8,7 @@ namespace Chronos.MainApi.Schedule.Services;
 public class OrganizationPolicyService(
     IOrganizationPolicyRepository organizationPolicyRepository,
     IManagementExternalService validationService,
+    ISchedulingPeriodService schedulingPeriodService,
     ILogger<OrganizationPolicyService> logger) : IOrganizationPolicyService
 {
     public async Task<OrganizationPolicy> CreatePolicyAsync(Guid organizationId, Guid schedulingPeriodId, string key,
@@ -18,6 +19,7 @@ public class OrganizationPolicyService(
             organizationId, schedulingPeriodId, key, value);
 
         await validationService.ValidateOrganizationAsync(organizationId);
+        await schedulingPeriodService.validateSchedulingPeriodAsync(organizationId, schedulingPeriodId);
 
         var organizationPolicy = new OrganizationPolicy
         {

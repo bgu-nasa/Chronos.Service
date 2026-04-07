@@ -9,12 +9,14 @@ namespace Chronos.MainApi.Schedule.Services;
 public class UserConstraintService(
     IUserConstraintRepository userConstraintRepository,
     IManagementExternalService validationService,
+    ISchedulingPeriodService schedulingPeriodService,
     ILogger<UserConstraintService> logger,
     IMessagePublisher messagePublisher) : IUserConstraintService
 {
     public async Task<Guid> CreateUserConstraintAsync(Guid organizationId, Guid userId, Guid schedulingPeriodId, string key, string value)
     {
         await validationService.ValidateOrganizationAsync(organizationId);
+        await schedulingPeriodService.validateSchedulingPeriodAsync(organizationId, schedulingPeriodId);
         var constraint = new UserConstraint
         {
             Id = Guid.NewGuid(),
