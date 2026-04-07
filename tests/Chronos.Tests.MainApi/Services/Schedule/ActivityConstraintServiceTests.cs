@@ -139,6 +139,23 @@ public class ActivityConstraintServiceTests
         var value = """{"days": ["Monday", "Wednesday"], "times": {"start": "09:00", "end": "17:00"}}""";
 
         _validationService.ValidateOrganizationAsync(organizationId).Returns(Task.CompletedTask);
+        _activityRepository.GetByIdAsync(activityId).Returns(new Activity
+        {
+            Id = activityId,
+            OrganizationId = organizationId,
+            SubjectId = Guid.NewGuid(),
+            AssignedUserId = Guid.Empty,
+            ActivityType = "Lecture"
+        });
+        _subjectRepository.GetByIdAsync(Arg.Any<Guid>()).Returns(new Subject
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = organizationId,
+            DepartmentId = Guid.NewGuid(),
+            SchedulingPeriodId = Guid.NewGuid(),
+            Code = "MATH101",
+            Name = "Math"
+        });
 
         var result = await _service.CreateActivityConstraintAsync(organizationId, activityId, key, value);
 
