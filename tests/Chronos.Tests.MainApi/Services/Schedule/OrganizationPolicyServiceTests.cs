@@ -14,6 +14,7 @@ public class OrganizationPolicyServiceTests
 {
     private IOrganizationPolicyRepository _organizationPolicyRepository = null!;
     private IManagementExternalService _validationService = null!;
+    private ISchedulingPeriodService _schedulingPeriodService = null!;
     private ILogger<OrganizationPolicyService> _logger = null!;
     private OrganizationPolicyService _service = null!;
 
@@ -22,11 +23,13 @@ public class OrganizationPolicyServiceTests
     {
         _organizationPolicyRepository = Substitute.For<IOrganizationPolicyRepository>();
         _validationService = Substitute.For<IManagementExternalService>();
+        _schedulingPeriodService = Substitute.For<ISchedulingPeriodService>();
         _logger = Substitute.For<ILogger<OrganizationPolicyService>>();
 
         _service = new OrganizationPolicyService(
             _organizationPolicyRepository,
             _validationService,
+            _schedulingPeriodService,
             _logger);
     }
 

@@ -13,6 +13,7 @@ public class UserPreferenceServiceTests
 {
     private IUserPreferenceRepository _userPreferenceRepository = null!;
     private IManagementExternalService _validationService = null!;
+    private ISchedulingPeriodService _schedulingPeriodService = null!;
     private ILogger<UserPreferenceService> _logger = null!;
     private UserPreferenceService _service = null!;
 
@@ -21,12 +22,14 @@ public class UserPreferenceServiceTests
     {
         _userPreferenceRepository = Substitute.For<IUserPreferenceRepository>();
         _validationService = Substitute.For<IManagementExternalService>();
+        _schedulingPeriodService = Substitute.For<ISchedulingPeriodService>();
         _logger = Substitute.For<ILogger<UserPreferenceService>>();
 
         _service = new UserPreferenceService(
             _userPreferenceRepository,
             _logger,
-            _validationService);
+            _validationService,
+            _schedulingPeriodService);
     }
 
     #region CreateUserPreferenceAsync Tests
