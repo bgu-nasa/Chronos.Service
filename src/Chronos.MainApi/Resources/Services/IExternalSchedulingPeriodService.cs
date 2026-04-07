@@ -1,6 +1,9 @@
+using Chronos.Domain.Schedule;
+
 namespace Chronos.MainApi.Resources.Services;
+
 
 public interface IExternalSchedulingPeriodService
 {
-    Task ValidateSchedulingPeriodAsync(Guid organizationId, Guid schedulingPeriodId);
+    Task validateSchedulingPeriodAsync(Guid organizationId, Guid schedulingPeriodId);
 }
