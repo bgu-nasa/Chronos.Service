@@ -39,6 +39,36 @@ namespace Chronos.Data.Repositories.Schedule
 
         public async Task DeleteAsync(SchedulingPeriod schedulingPeriod)
         {
+            context.UserConstraints.RemoveRange(context.UserConstraints.Where(uc => uc.SchedulingPeriodId == schedulingPeriod.Id));
+            context.UserPreferences.RemoveRange(context.UserPreferences.Where(up => up.SchedulingPeriodId == schedulingPeriod.Id));
+            context.OrganizationPolicies.RemoveRange(context.OrganizationPolicies.Where(op => op.SchedulingPeriodId == schedulingPeriod.Id));
+            var slots = await context.Slots
+                .Where(s => s.SchedulingPeriodId == schedulingPeriod.Id)
+                .ToListAsync();
+            foreach (var slot in slots)
+            {
+                context.Assignments.RemoveRange(context.Assignments.Where(a => a.SlotId == slot.Id));
+                context.Slots.Remove(slot);
+            }
+            
+            var subjects = await context.Subjects
+                .Where(a => a.SchedulingPeriodId == schedulingPeriod.Id)
+                .ToListAsync();
+
+            foreach (var subject in subjects)
+            {
+                var activities = await context.Activities
+                .Where(a => a.SubjectId == subject.Id)
+                .ToListAsync();
+
+                foreach (var activity in activities)
+                {
+                    context.ActivityConstraints.RemoveRange(context.ActivityConstraints.Where(ac => ac.ActivityId == activity.Id));
+                    context.Activities.Remove(activity);
+                }
+                context.Subjects.Remove(subject);
+            }
+
             context.SchedulingPeriods.Remove(schedulingPeriod);
             await context.SaveChangesAsync();
         }
