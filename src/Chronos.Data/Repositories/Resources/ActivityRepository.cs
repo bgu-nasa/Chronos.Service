@@ -33,6 +33,8 @@ public class ActivityRepository(AppDbContext context) : IActivityRepository
 
     public async Task DeleteAsync(Activity activity)
     {
+        context.ActivityConstraints.RemoveRange(context.ActivityConstraints.Where(ac => ac.ActivityId == activity.Id));
+        context.Assignments.RemoveRange(context.Assignments.Where(a => a.ActivityId == activity.Id));
         context.Activities.Remove(activity);
         await context.SaveChangesAsync();
     }

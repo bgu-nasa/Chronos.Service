@@ -33,6 +33,16 @@ public class SubjectRepository(AppDbContext context) : ISubjectRepository
 
     public async Task DeleteAsync(Subject subject)
     {
+        var activities = await context.Activities
+        .Where(a => a.SubjectId == subject.Id)
+        .ToListAsync();
+
+        foreach (var activity in activities)
+        {
+            context.ActivityConstraints.RemoveRange(context.ActivityConstraints.Where(ac => ac.ActivityId == activity.Id));
+            context.Assignments.RemoveRange(context.Assignments.Where(a => a.ActivityId == activity.Id));
+            context.Activities.Remove(activity);
+        }
         context.Subjects.Remove(subject);
         await context.SaveChangesAsync();
     }
