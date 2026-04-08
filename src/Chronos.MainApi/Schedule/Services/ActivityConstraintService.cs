@@ -23,9 +23,15 @@ public class ActivityConstraintService(
 
     public async Task<Guid> CreateActivityConstraintAsync(Guid organizationId, Guid activityId, string key, string value)
     {
-        
+
         await validationService.ValidateOrganizationAsync(organizationId);
         ValidateConstraintValue(key, value);
+        var activity = await activityRepository.GetByIdAsync(activityId);
+        if (activity == null || activity.OrganizationId != organizationId)
+        {
+            logger.LogInformation("Activity {ActivityId} not found for Organization {OrganizationId}", activityId, organizationId);
+            throw new NotFoundException($"Activity with ID {activityId} not found in organization {organizationId}.");
+        }
         var constraint = new ActivityConstraint
         {
             Id = Guid.NewGuid(),

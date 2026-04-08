@@ -15,6 +15,7 @@ public class UserConstraintServiceTests
 {
     private IUserConstraintRepository _userConstraintRepository = null!;
     private IManagementExternalService _validationService = null!;
+    private ISchedulingPeriodService _schedulingPeriodService = null!;
     private IMessagePublisher _messagePublisher = null!;
     private ILogger<UserConstraintService> _logger = null!;
     private UserConstraintService _service = null!;
@@ -24,12 +25,14 @@ public class UserConstraintServiceTests
     {
         _userConstraintRepository = Substitute.For<IUserConstraintRepository>();
         _validationService = Substitute.For<IManagementExternalService>();
+        _schedulingPeriodService = Substitute.For<ISchedulingPeriodService>();
         _messagePublisher = Substitute.For<IMessagePublisher>();
         _logger = Substitute.For<ILogger<UserConstraintService>>();
 
         _service = new UserConstraintService(
             _userConstraintRepository,
             _validationService,
+            _schedulingPeriodService,
             _logger,
             _messagePublisher);
     }
