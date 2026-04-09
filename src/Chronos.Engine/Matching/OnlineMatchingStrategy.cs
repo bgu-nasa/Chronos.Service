@@ -121,8 +121,8 @@ public class OnlineMatchingStrategy(
             );
         }
 
-        var assignment = (await _assignmentRepository.GetByActivityIdAsync(activity.Id)).FirstOrDefault();
-        if (assignment == null)
+        var assignments = await GetOrderedAssignmentsByActivityAsync(activity.Id, cancellationToken);
+        if (!assignments.Any())
         {
             return new SchedulingResult(
                 request.ActivityConstraintId,
@@ -134,7 +134,10 @@ public class OnlineMatchingStrategy(
             );
         }
 
-        var schedulingPeriodId = await ResolveSchedulingPeriodIdAsync(request.SchedulingPeriodId, assignment);
+        var schedulingPeriodId = await ResolveSchedulingPeriodIdAsync(
+            request.SchedulingPeriodId,
+            assignments[0]
+        );
         if (schedulingPeriodId == Guid.Empty)
         {
             return new SchedulingResult(
@@ -153,7 +156,12 @@ public class OnlineMatchingStrategy(
             schedulingPeriodId
         );
 
-        var isValid = await IsAssignmentValidAsync(activity, assignment, excludedSlots);
+        var isValid = await IsAssignmentSetValidAsync(
+            activity,
+            assignments,
+            excludedSlots,
+            cancellationToken
+        );
         if (isValid)
         {
             return new SchedulingResult(
@@ -169,7 +177,7 @@ public class OnlineMatchingStrategy(
         return await TryRescheduleAssignmentAsync(
             request.ActivityConstraintId,
             activity,
-            assignment,
+            assignments,
             excludedSlots,
             request.OrganizationId,
             schedulingPeriodId,
@@ -231,11 +239,13 @@ public class OnlineMatchingStrategy(
             .ToListAsync(cancellationToken);
 
         var activitiesById = activities.ToDictionary(a => a.Id);
-        var affectedAssignments = assignments
+        var affectedActivityIds = assignments
             .Where(a => activitiesById.ContainsKey(a.ActivityId))
+            .Select(a => a.ActivityId)
+            .Distinct()
             .ToList();
 
-        if (!affectedAssignments.Any())
+        if (!affectedActivityIds.Any())
         {
             return new SchedulingResult(
                 request.ActivityConstraintId,
@@ -250,21 +260,36 @@ public class OnlineMatchingStrategy(
         var modifiedCount = 0;
         var unresolvedActivityIds = new List<Guid>();
 
-        foreach (var assignment in affectedAssignments)
+        foreach (var activityId in affectedActivityIds)
         {
             if (cancellationToken.IsCancellationRequested)
             {
                 break;
             }
 
-            var activity = activitiesById[assignment.ActivityId];
+            var activity = activitiesById[activityId];
+            var currentAssignments = await GetOrderedAssignmentsByActivityAsync(
+                activity.Id,
+                cancellationToken
+            );
+
+            if (!currentAssignments.Any())
+            {
+                continue;
+            }
+
             var excludedSlots = await GetExcludedSlotsAsync(
                 activity,
                 request.OrganizationId,
                 request.SchedulingPeriodId
             );
 
-            var isValid = await IsAssignmentValidAsync(activity, assignment, excludedSlots);
+            var isValid = await IsAssignmentSetValidAsync(
+                activity,
+                currentAssignments,
+                excludedSlots,
+                cancellationToken
+            );
             if (isValid)
             {
                 continue;
@@ -273,7 +298,7 @@ public class OnlineMatchingStrategy(
             var rematchResult = await TryRescheduleAssignmentAsync(
                 request.ActivityConstraintId,
                 activity,
-                assignment,
+                currentAssignments,
                 excludedSlots,
                 request.OrganizationId,
                 request.SchedulingPeriodId,
@@ -305,7 +330,7 @@ public class OnlineMatchingStrategy(
     private async Task<SchedulingResult> TryRescheduleAssignmentAsync(
         Guid requestId,
         Activity activity,
-        Assignment currentAssignment,
+        List<Assignment> currentAssignments,
         HashSet<Guid> excludedSlots,
         Guid organizationId,
         Guid schedulingPeriodId,
@@ -315,8 +340,9 @@ public class OnlineMatchingStrategy(
         _logger.LogInformation("Re-matching Activity {ActivityId}", activity.Id);
 
         var allAssignments = await _assignmentRepository.GetBySchedulingPeriodIdAsync(schedulingPeriodId);
+        var currentAssignmentIds = currentAssignments.Select(a => a.Id).ToHashSet();
         var occupiedPairs = allAssignments
-            .Where(a => a.Id != currentAssignment.Id)
+            .Where(a => !currentAssignmentIds.Contains(a.Id))
             .Select(a => (a.SlotId, a.ResourceId))
             .ToHashSet();
 
@@ -330,27 +356,44 @@ public class OnlineMatchingStrategy(
             .Where(r => r.OrganizationId == organizationId)
             .ToListAsync(cancellationToken);
 
-        // Stage A: try same slot with a different resource first.
-        var sameSlotCandidates = await BuildCandidatesAsync(
+        var startAssignment = currentAssignments[0];
+
+        // Stage A: try to preserve the starting slot while finding a valid full streak.
+        var sameStartCandidates = await BuildStreakCandidatesAsync(
             activity,
-            slots.Where(s => s.Id == currentAssignment.SlotId && !excludedSlots.Contains(s.Id)).ToList(),
+            slots.Where(s => s.Id == startAssignment.SlotId && !excludedSlots.Contains(s.Id)).ToList(),
+            slots,
             resources,
             occupiedPairs,
+            excludedSlots,
             cancellationToken
         );
 
-        if (sameSlotCandidates.Any())
+        if (sameStartCandidates.Any())
         {
             var sameSlotSelection = await SelectCandidateAsync(
-                sameSlotCandidates,
+                sameStartCandidates,
                 activity,
                 organizationId,
                 schedulingPeriodId
             );
 
-            currentAssignment.SlotId = sameSlotSelection.SlotId;
-            currentAssignment.ResourceId = sameSlotSelection.ResourceId;
-            await _assignmentRepository.UpdateAsync(currentAssignment);
+            foreach (var assignment in currentAssignments)
+            {
+                await _assignmentRepository.DeleteAsync(assignment);
+            }
+
+            foreach (var pair in sameSlotSelection.Streak.OrderBy(p => p.Slot.FromTime))
+            {
+                await _assignmentRepository.AddAsync(new Assignment
+                {
+                    Id = Guid.NewGuid(),
+                    OrganizationId = organizationId,
+                    SlotId = pair.SlotId,
+                    ResourceId = pair.ResourceId,
+                    ActivityId = activity.Id,
+                });
+            }
 
             return new SchedulingResult(
                 requestId,
@@ -362,15 +405,17 @@ public class OnlineMatchingStrategy(
             );
         }
 
-        // Stage B: fallback to another slot and resource.
-        var fallbackCandidates = await BuildCandidatesAsync(
+        // Stage B: fallback to another starting slot and resource.
+        var fallbackCandidates = await BuildStreakCandidatesAsync(
             activity,
             slots
-                .Where(s => s.Id != currentAssignment.SlotId)
+                .Where(s => s.Id != startAssignment.SlotId)
                 .Where(s => !excludedSlots.Contains(s.Id))
                 .ToList(),
+            slots,
             resources,
             occupiedPairs,
+            excludedSlots,
             cancellationToken
         );
 
@@ -398,15 +443,28 @@ public class OnlineMatchingStrategy(
             schedulingPeriodId
         );
 
-        currentAssignment.SlotId = fallbackSelection.SlotId;
-        currentAssignment.ResourceId = fallbackSelection.ResourceId;
-        await _assignmentRepository.UpdateAsync(currentAssignment);
+        foreach (var assignment in currentAssignments)
+        {
+            await _assignmentRepository.DeleteAsync(assignment);
+        }
+
+        foreach (var pair in fallbackSelection.Streak.OrderBy(p => p.Slot.FromTime))
+        {
+            await _assignmentRepository.AddAsync(new Assignment
+            {
+                Id = Guid.NewGuid(),
+                OrganizationId = organizationId,
+                SlotId = pair.SlotId,
+                ResourceId = pair.ResourceId,
+                ActivityId = activity.Id,
+            });
+        }
 
         _logger.LogInformation(
-            "Successfully re-matched Activity {ActivityId} using fallback stage - New assignment: Slot {SlotId}, Resource {ResourceId}",
+            "Successfully re-matched Activity {ActivityId} using fallback stage - New streak length: {StreakLength}, Resource {ResourceId}",
             activity.Id,
-            currentAssignment.SlotId,
-            currentAssignment.ResourceId
+            fallbackSelection.Streak.Count,
+            fallbackSelection.Anchor.ResourceId
         );
 
         return new SchedulingResult(
@@ -419,17 +477,25 @@ public class OnlineMatchingStrategy(
         );
     }
 
-    private async Task<List<SlotResourcePair>> BuildCandidatesAsync(
+    private async Task<List<(SlotResourcePair Anchor, List<SlotResourcePair> Streak)>> BuildStreakCandidatesAsync(
         Activity activity,
-        List<Slot> slots,
+        List<Slot> startSlots,
+        List<Slot> allSlots,
         List<Resource> resources,
         HashSet<(Guid SlotId, Guid ResourceId)> occupiedPairs,
+        HashSet<Guid> excludedSlots,
         CancellationToken cancellationToken
     )
     {
-        var candidates = new List<SlotResourcePair>();
+        var candidates = new List<(SlotResourcePair Anchor, List<SlotResourcePair> Streak)>();
+        var dedupe = new HashSet<string>();
+        var orderedAllSlots = allSlots
+            .OrderBy(s => s.Weekday)
+            .ThenBy(s => s.FromTime)
+            .ThenBy(s => s.ToTime)
+            .ToList();
 
-        foreach (var slot in slots)
+        foreach (var slot in startSlots)
         {
             if (cancellationToken.IsCancellationRequested)
             {
@@ -438,7 +504,8 @@ public class OnlineMatchingStrategy(
 
             foreach (var resource in resources)
             {
-                if (occupiedPairs.Contains((slot.Id, resource.Id)))
+                var key = (slot.Id, resource.Id);
+                if (excludedSlots.Contains(slot.Id) || occupiedPairs.Contains(key))
                 {
                     continue;
                 }
@@ -449,15 +516,37 @@ public class OnlineMatchingStrategy(
                     continue;
                 }
 
-                candidates.Add(new SlotResourcePair(slot, resource));
+                var anchor = new SlotResourcePair(slot, resource);
+                var streak = await TryBuildConsecutiveStreakAsync(
+                    activity,
+                    slot,
+                    resource,
+                    orderedAllSlots,
+                    excludedSlots,
+                    occupiedPairs,
+                    cancellationToken
+                );
+
+                if (streak == null || streak.Count == 0)
+                {
+                    continue;
+                }
+
+                var dedupeKey = $"{resource.Id}:{string.Join("|", streak.Select(s => s.SlotId))}";
+                if (!dedupe.Add(dedupeKey))
+                {
+                    continue;
+                }
+
+                candidates.Add((anchor, streak));
             }
         }
 
         return candidates;
     }
 
-    private async Task<SlotResourcePair> SelectCandidateAsync(
-        List<SlotResourcePair> candidates,
+    private async Task<(SlotResourcePair Anchor, List<SlotResourcePair> Streak)> SelectCandidateAsync(
+        List<(SlotResourcePair Anchor, List<SlotResourcePair> Streak)> candidates,
         Activity activity,
         Guid organizationId,
         Guid schedulingPeriodId
@@ -467,14 +556,16 @@ public class OnlineMatchingStrategy(
         for (int i = 0; i < candidates.Count; i++)
         {
             weights[i] = await _ranker.CalculateWeightAsync(
-                candidates[i],
+                candidates[i].Anchor,
                 activity.AssignedUserId,
                 organizationId,
                 schedulingPeriodId
             );
         }
 
-        return _ranker.SelectRandomWeighted(candidates, weights);
+        var anchors = candidates.Select(c => c.Anchor).ToList();
+        var selectedAnchor = _ranker.SelectRandomWeighted(anchors, weights);
+        return candidates.First(c => c.Anchor == selectedAnchor);
     }
 
     private async Task<HashSet<Guid>> GetExcludedSlotsAsync(
@@ -491,30 +582,85 @@ public class OnlineMatchingStrategy(
         );
     }
 
-    private async Task<bool> IsAssignmentValidAsync(
+    private async Task<bool> IsAssignmentSetValidAsync(
         Activity activity,
-        Assignment assignment,
-        HashSet<Guid> excludedSlots
+        List<Assignment> assignments,
+        HashSet<Guid> excludedSlots,
+        CancellationToken cancellationToken
     )
     {
-        if (excludedSlots.Contains(assignment.SlotId))
+        if (assignments.Count == 0)
         {
             return false;
         }
 
-        var slot = await _dbContext
+        var slotIds = assignments.Select(a => a.SlotId).Distinct().ToList();
+        var resourceIds = assignments.Select(a => a.ResourceId).Distinct().ToList();
+
+        if (resourceIds.Count != 1)
+        {
+            return false;
+        }
+
+        if (slotIds.Any(excludedSlots.Contains))
+        {
+            return false;
+        }
+
+        var slots = await _dbContext
             .Slots.IgnoreQueryFilters()
-            .FirstOrDefaultAsync(s => s.Id == assignment.SlotId);
+            .Where(s => slotIds.Contains(s.Id))
+            .ToListAsync(cancellationToken);
+
+        if (slots.Count != slotIds.Count)
+        {
+            return false;
+        }
+
         var resource = await _dbContext
             .Resources.IgnoreQueryFilters()
-            .FirstOrDefaultAsync(r => r.Id == assignment.ResourceId);
+            .FirstOrDefaultAsync(r => r.Id == resourceIds[0], cancellationToken);
 
-        if (slot == null || resource == null)
+        if (resource == null)
         {
             return false;
         }
 
-        return await _constraintEvaluator.CanAssignAsync(activity, slot, resource);
+        var orderedSlots = slots
+            .OrderBy(s => s.FromTime)
+            .ThenBy(s => s.ToTime)
+            .ToList();
+
+        if (orderedSlots.Select(s => s.Weekday).Distinct().Count() != 1)
+        {
+            return false;
+        }
+
+        var requiredDuration = GetRequiredDuration(activity);
+        var totalDuration = orderedSlots.Aggregate(TimeSpan.Zero, (sum, slot) => sum + GetSlotDuration(slot));
+        if (requiredDuration <= TimeSpan.Zero || totalDuration != requiredDuration)
+        {
+            return false;
+        }
+
+        for (int i = 1; i < orderedSlots.Count; i++)
+        {
+            if (!AreConsecutive(orderedSlots[i - 1], orderedSlots[i]))
+            {
+                return false;
+            }
+        }
+
+        foreach (var slot in orderedSlots)
+        {
+            var canAssign = await _constraintEvaluator.CanAssignAsync(activity, slot, resource);
+            if (!canAssign)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private async Task<Guid> ResolveSchedulingPeriodIdAsync(
@@ -531,5 +677,109 @@ public class OnlineMatchingStrategy(
             .Slots.IgnoreQueryFilters()
             .FirstOrDefaultAsync(s => s.Id == assignment.SlotId);
         return slot?.SchedulingPeriodId ?? Guid.Empty;
+    }
+
+    private async Task<List<Assignment>> GetOrderedAssignmentsByActivityAsync(
+        Guid activityId,
+        CancellationToken cancellationToken
+    )
+    {
+        var assignments = await _assignmentRepository.GetByActivityIdAsync(activityId);
+        if (!assignments.Any())
+        {
+            return assignments;
+        }
+
+        var slotsById = await _dbContext
+            .Slots.IgnoreQueryFilters()
+            .Where(s => assignments.Select(a => a.SlotId).Contains(s.Id))
+            .ToDictionaryAsync(s => s.Id, cancellationToken);
+
+        return assignments
+            .Where(a => slotsById.ContainsKey(a.SlotId))
+            .OrderBy(a => slotsById[a.SlotId].Weekday)
+            .ThenBy(a => slotsById[a.SlotId].FromTime)
+            .ThenBy(a => slotsById[a.SlotId].ToTime)
+            .ToList();
+    }
+
+    private async Task<List<SlotResourcePair>?> TryBuildConsecutiveStreakAsync(
+        Activity activity,
+        Slot startSlot,
+        Resource resource,
+        List<Slot> orderedSlots,
+        HashSet<Guid> excludedSlots,
+        HashSet<(Guid SlotId, Guid ResourceId)> occupiedPairs,
+        CancellationToken cancellationToken
+    )
+    {
+        var requiredDuration = GetRequiredDuration(activity);
+        var startDuration = GetSlotDuration(startSlot);
+
+        if (requiredDuration <= TimeSpan.Zero || startDuration <= TimeSpan.Zero || startDuration > requiredDuration)
+        {
+            return null;
+        }
+
+        var streak = new List<SlotResourcePair> { new(startSlot, resource) };
+        var currentSlot = startSlot;
+        var totalDuration = startDuration;
+
+        while (totalDuration < requiredDuration)
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return null;
+            }
+
+            var nextSlot = orderedSlots.FirstOrDefault(s => AreConsecutive(currentSlot, s));
+            if (nextSlot == null)
+            {
+                return null;
+            }
+
+            if (excludedSlots.Contains(nextSlot.Id) || occupiedPairs.Contains((nextSlot.Id, resource.Id)))
+            {
+                return null;
+            }
+
+            var canAssign = await _constraintEvaluator.CanAssignAsync(activity, nextSlot, resource);
+            if (!canAssign)
+            {
+                return null;
+            }
+
+            var nextDuration = GetSlotDuration(nextSlot);
+            if (nextDuration <= TimeSpan.Zero)
+            {
+                return null;
+            }
+
+            streak.Add(new SlotResourcePair(nextSlot, resource));
+            totalDuration += nextDuration;
+            currentSlot = nextSlot;
+        }
+
+        return totalDuration == requiredDuration ? streak : null;
+    }
+
+    private static TimeSpan GetRequiredDuration(Activity activity)
+    {
+        if (activity.Duration <= 0)
+        {
+            return TimeSpan.Zero;
+        }
+
+        return TimeSpan.FromMinutes(activity.Duration);
+    }
+
+    private static TimeSpan GetSlotDuration(Slot slot)
+    {
+        return slot.ToTime - slot.FromTime;
+    }
+
+    private static bool AreConsecutive(Slot current, Slot next)
+    {
+        return current.Weekday == next.Weekday && current.ToTime == next.FromTime;
     }
 }
