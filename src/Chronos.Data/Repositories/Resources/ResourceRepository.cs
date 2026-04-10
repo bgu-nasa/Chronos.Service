@@ -32,6 +32,8 @@ public class ResourceRepository(AppDbContext context) : IResourceRepository
 
     public async Task DeleteAsync(Resource resource)
     {
+        context.ResourceAttributeAssignments.RemoveRange(context.ResourceAttributeAssignments.Where(raa => raa.ResourceId == resource.Id));
+        context.Assignments.RemoveRange(context.Assignments.Where(a => a.ResourceId == resource.Id));
         context.Resources.Remove(resource);
         await context.SaveChangesAsync();
     }
