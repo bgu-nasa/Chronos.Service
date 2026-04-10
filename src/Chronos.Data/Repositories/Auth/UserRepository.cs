@@ -50,8 +50,10 @@ public class UserRepository(AppDbContext context) : IUserRepository
 
     public async Task DeleteAsync(User user, CancellationToken cancellationToken = default)
     {
-        context.Users.Remove(user);
-        foreach (var activity in context.Activities.Where(a => a.AssignedUserId == user.Id))
+        var activities = await context.Activities
+        .Where(a => a.AssignedUserId == user.Id)
+        .ToListAsync();
+        foreach (var activity in activities)
         {
             context.Assignments.RemoveRange(context.Assignments.Where(a => a.ActivityId == activity.Id));
             context.ActivityConstraints.RemoveRange(context.ActivityConstraints.Where(ac => ac.ActivityId == activity.Id));
@@ -60,6 +62,7 @@ public class UserRepository(AppDbContext context) : IUserRepository
         context.UserConstraints.RemoveRange(context.UserConstraints.Where(uc => uc.UserId == user.Id));
         context.UserPreferences.RemoveRange(context.UserPreferences.Where(up => up.UserId == user.Id));
         context.RoleAssignments.RemoveRange(context.RoleAssignments.Where(ra => ra.UserId == user.Id));
+        context.Users.Remove(user);
         await context.SaveChangesAsync(cancellationToken);
         
     }
