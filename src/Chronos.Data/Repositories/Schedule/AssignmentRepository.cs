@@ -12,10 +12,44 @@ public class AssignmentRepository(AppDbContext context) : IAssignmentRepository
             .FirstOrDefaultAsync(a => a.Id == id);
     }
 
-    public async Task<List<Assignment>> GetAllAsync()
+    public async Task<List<Assignment>> GetAllAsync(AssignmentQuery? query = null)
     {
-        return await context.Assignments
-            .ToListAsync();
+        var q = context.Assignments.AsQueryable();
+
+        if (query is not null)
+        {
+            if (query.OrganizationId.HasValue)
+                q = q.Where(a => a.OrganizationId == query.OrganizationId.Value);
+
+            if (query.SlotId.HasValue)
+                q = q.Where(a => a.SlotId == query.SlotId.Value);
+
+            if (query.ResourceId.HasValue)
+                q = q.Where(a => a.ResourceId == query.ResourceId.Value);
+
+            if (query.ActivityId.HasValue)
+                q = q.Where(a => a.ActivityId == query.ActivityId.Value);
+
+            if (query.SchedulingPeriodId.HasValue)
+            {
+                var slotIds = await context.Slots
+                    .Where(s => s.SchedulingPeriodId == query.SchedulingPeriodId.Value)
+                    .Select(s => s.Id)
+                    .ToListAsync();
+                q = q.Where(a => slotIds.Contains(a.SlotId));
+            }
+
+            if (query.UserId.HasValue)
+            {
+                var activityIds = await context.Activities
+                    .Where(a => a.AssignedUserId == query.UserId.Value)
+                    .Select(a => a.Id)
+                    .ToListAsync();
+                q = q.Where(a => activityIds.Contains(a.ActivityId));
+            }
+        }
+
+        return await q.ToListAsync();
     }
 
     public async Task<List<Assignment>> GetBySlotIdAsync(Guid slotId)

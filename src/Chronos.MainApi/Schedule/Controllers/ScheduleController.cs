@@ -226,12 +226,17 @@ public class ScheduleController(
 
     [Authorize (Policy = ViewerPolicy)]
     [HttpGet("assignments")]
-    public async Task<IActionResult> GetAllAssignments()
+    public async Task<IActionResult> GetAllAssignments(
+        [FromQuery] Guid? slotId = null,
+        [FromQuery] Guid? resourceId = null,
+        [FromQuery] Guid? activityId = null,
+        [FromQuery] Guid? assignedUserId = null,
+        [FromQuery] Guid? schedulingPeriodId = null)
     {
         logger.LogInformation("Get all assignments endpoint was called");
         var organizationId = ControllerUtils.GetOrganizationIdAndFailIfMissing(HttpContext, logger);
 
-        var assignments = await assignmentService.GetAllAssignmentsAsync(organizationId);
+        var assignments = await assignmentService.GetAllAssignmentsAsync(organizationId, slotId, resourceId, activityId, assignedUserId, schedulingPeriodId);
         var responses = assignments.Select(a => a.ToAssignmentResponse()).ToList();
 
         return Ok(responses);
