@@ -57,18 +57,32 @@ public class AssignmentService(
         return assignment;
     }
     
-    public async Task<List<Assignment>> GetAllAssignmentsAsync(Guid organizationId)
+    public async Task<List<Assignment>> GetAllAssignmentsAsync(
+        Guid organizationId,
+        Guid? slotId = null,
+        Guid? resourceId = null,
+        Guid? activityId = null,
+        Guid? userId = null,
+        Guid? schedulingPeriodId = null)
     {
         logger.LogInformation("Retrieving all assignments for organization. OrganizationId: {OrganizationId}", organizationId);
-        
+
         await validationService.ValidateOrganizationAsync(organizationId);
-        var all = await assignmentRepository.GetAllAsync();
-        var filtered = all
-            .Where(a => a.OrganizationId == organizationId)
-            .ToList();
-        
-        logger.LogInformation("Retrieved {Count} assignments for organization. OrganizationId: {OrganizationId}", filtered.Count, organizationId);
-        return filtered;
+
+        var query = new AssignmentQuery
+        {
+            OrganizationId = organizationId,
+            SlotId = slotId,
+            ResourceId = resourceId,
+            ActivityId = activityId,
+            UserId = userId,
+            SchedulingPeriodId = schedulingPeriodId,
+        };
+
+        var assignments = await assignmentRepository.GetAllAsync(query);
+
+        logger.LogInformation("Retrieved {Count} assignments for organization. OrganizationId: {OrganizationId}", assignments.Count, organizationId);
+        return assignments;
     }
     
     public async Task<List<Assignment>> GetAssignmentsBySlotAsync(Guid organizationId, Guid slotId)

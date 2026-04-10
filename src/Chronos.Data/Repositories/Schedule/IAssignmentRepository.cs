@@ -6,7 +6,7 @@ public interface IAssignmentRepository
 {
     Task<Assignment?> GetByIdAsync(Guid id);
 
-    Task<List<Assignment>> GetAllAsync();
+    Task<List<Assignment>> GetAllAsync(AssignmentQuery? query = null);
 
     Task<List<Assignment>> GetBySlotIdAsync(Guid slotId);
     Task<List<Assignment>> GetByActivityIdAsync(Guid activityId);
