@@ -8,7 +8,8 @@ namespace Chronos.MainApi.Schedule.Services;
 public class UserPreferenceService(
     IUserPreferenceRepository userPreferenceRepository,
     ILogger<UserPreferenceService> logger,
-    IManagementExternalService scheduleValidationService) : IUserPreferenceService
+    IManagementExternalService scheduleValidationService,
+    ISchedulingPeriodService schedulingPeriodService) : IUserPreferenceService
 {
     public async Task<Guid> CreateUserPreferenceAsync(Guid organizationId, Guid userId, Guid schedulingPeriodId,
         string key, string value)
@@ -18,6 +19,7 @@ public class UserPreferenceService(
             userId, organizationId, schedulingPeriodId, key, value);
 
         await scheduleValidationService.ValidateOrganizationAsync(organizationId);
+        await schedulingPeriodService.validateSchedulingPeriodAsync(organizationId, schedulingPeriodId);
 
         var userPreference = new UserPreference
         {
@@ -143,6 +145,7 @@ public class UserPreferenceService(
             "Updating user preference. UserId: {UserId}, OrganizationId: {OrganizationId}, SchedulingPeriodId: {SchedulingPeriodId}, Key: {Key}, Value: {Value}",
             userId, organizationId, schedulingPeriodId, key, value);
 
+        await schedulingPeriodService.validateSchedulingPeriodAsync(organizationId, schedulingPeriodId);
         var preference = await GetUserPreferenceAsync(organizationId, userId, schedulingPeriodId, key);
 
         preference.Value = value;

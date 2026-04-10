@@ -7,6 +7,7 @@ public class SubjectService(
     ISubjectRepository subjectRepository,
     ResourceValidationService validationService,
     IExternalSchedulingPeriodService externalSchedulingPeriodService,
+    IExternalDepartmentService externalDepartmentService,
     ILogger<SubjectService> logger) : ISubjectService
 {
     public async Task<Subject> CreateSubjectAsync(Guid organizationId, Guid departmentId, Guid schedulingPeriodId, string code, string name)
@@ -15,8 +16,9 @@ public class SubjectService(
             organizationId, departmentId, schedulingPeriodId, code, name);
 
         await validationService.ValidationOrganizationAsync(organizationId);
-        logger.LogInformation("Validating scheduling period for subject creation. OrganizationId: {OrganizationId}, SchedulingPeriodId: {SchedulingPeriodId}", organizationId, schedulingPeriodId);
-        await externalSchedulingPeriodService.ValidateSchedulingPeriodAsync(organizationId, schedulingPeriodId);
+        await externalSchedulingPeriodService.validateSchedulingPeriodAsync(organizationId, schedulingPeriodId);
+        await externalDepartmentService.validateDepartmentAsync(organizationId, departmentId);
+
         var subject = new Subject
         {
             OrganizationId = organizationId,
@@ -80,6 +82,9 @@ public class SubjectService(
         await validationService.ValidationOrganizationAsync(organizationId);
         var subject = await validationService.ValidateAndGetSubjectAsync(organizationId, subjectId);
 
+
+        await externalDepartmentService.validateDepartmentAsync(organizationId, departmentId);  
+        await externalSchedulingPeriodService.validateSchedulingPeriodAsync(organizationId, schedulingPeriodId);
         subject.DepartmentId = departmentId;
         subject.SchedulingPeriodId = schedulingPeriodId;
         subject.Code = code;

@@ -269,65 +269,90 @@ public class RankingAlgorithmStrategy(
                 schedulingPeriodId
             );
 
-            // Filter valid candidates
-            var totalPairs = rankedPairs.Count;
-            
-            // First filter: slot-level exclusions and occupation
-            var preFilteredPairs = rankedPairs
-                .Where(p => !excludedSlots.Contains(p.SlotId))
-                .Where(p => !occupiedPairs.Contains((p.SlotId, p.ResourceId)))
-                .ToList();
-            
-            // Second filter: constraint evaluation (including required_capacity)
-            var validCandidates = new List<SlotResourcePair>();
-            foreach (var pair in preFilteredPairs)
-            {
-                // Use constraint evaluator to check if this (slot, resource) pair is valid
-                var canAssign = await _constraintEvaluator.CanAssignAsync(activity, pair.Slot, pair.Resource);
-                if (canAssign)
-                {
-                    validCandidates.Add(pair);
-                }
-                else
-                {
-                    _logger.LogTrace(
-                        "Excluding (Slot {SlotId}, Resource {ResourceId}) for Activity {ActivityId} due to constraint violation",
-                        pair.SlotId,
-                        pair.ResourceId,
-                        activity.Id
-                    );
-                }
-            }
-            
-            // Order by rank (earlier rank = higher priority)
-            validCandidates = validCandidates
-                .OrderBy(p => p.Rank)
-                .ToList();
-
-            var excludedByConstraints = rankedPairs.Count(p => excludedSlots.Contains(p.SlotId));
-            var excludedByOccupation = rankedPairs.Count(p =>
-                !excludedSlots.Contains(p.SlotId)
-                && occupiedPairs.Contains((p.SlotId, p.ResourceId))
-            );
-            var excludedByCapacity =
-                totalPairs - excludedByConstraints - excludedByOccupation - validCandidates.Count;
-
-            _logger.LogTrace(
-                "Activity {ActivityId} filtering: {Valid} valid, {Constraints} excluded by constraints, {Occupied} occupied, {Capacity} insufficient capacity",
-                activity.Id,
-                validCandidates.Count,
-                excludedByConstraints,
-                excludedByOccupation,
-                excludedByCapacity
-            );
-
-            if (!validCandidates.Any())
+            var requiredDuration = GetRequiredDuration(activity);
+            if (requiredDuration <= TimeSpan.Zero)
             {
                 _logger.LogWarning(
-                    "No valid candidates for Activity {ActivityId}. Excluded slots: {ExcludedCount}, Occupied: {OccupiedCount}",
+                    "Activity {ActivityId} has invalid duration {Duration}; skipping",
                     activity.Id,
-                    excludedSlots.Count,
-                    occupiedPairs.Count
+                    activity.Duration
+                );
+                unscheduledActivities.Add(activity.Id);
+                continue;
+            }
+
+            var slotsByResource = rankedPairs
+                .GroupBy(p => p.ResourceId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Select(p => p.Slot)
+                        .DistinctBy(s => s.Id)
+                        .OrderBy(s => s.Weekday)
+                        .ThenBy(s => s.FromTime)
+                        .ThenBy(s => s.ToTime)
+                        .ToList()
+                );
+
+            var pairByKey = rankedPairs
+                .GroupBy(p => (p.SlotId, p.ResourceId))
+                .ToDictionary(g => g.Key, g => g.OrderBy(p => p.Rank).First());
+
+            var streakCandidates = new List<(SlotResourcePair Anchor, List<SlotResourcePair> Streak)>();
+            var dedupe = new HashSet<string>();
+
+            foreach (var pair in rankedPairs.OrderBy(p => p.Rank))
+            {
+                if (excludedSlots.Contains(pair.SlotId))
+                {
+                    continue;
+                }
+
+                if (occupiedPairs.Contains((pair.SlotId, pair.ResourceId)))
+                {
+                    continue;
+                }
+
+                var canAssignStart = await _constraintEvaluator.CanAssignAsync(
+                    activity,
+                    pair.Slot,
+                    pair.Resource
+                );
+                if (!canAssignStart)
+                {
+                    continue;
+                }
+
+                var streak = await TryBuildConsecutiveStreakAsync(
+                    activity,
+                    pair,
+                    requiredDuration,
+                    slotsByResource,
+                    pairByKey,
+                    excludedSlots,
+                    occupiedPairs
+                );
+
+                if (streak == null || streak.Count == 0)
+                {
+                    continue;
+                }
+
+                var dedupeKey = $"{pair.ResourceId}:{string.Join("|", streak.Select(s => s.SlotId))}";
+                if (!dedupe.Add(dedupeKey))
+                {
+                    continue;
+                }
+
+                streakCandidates.Add((pair, streak));
+            }
+
+            if (!streakCandidates.Any())
+            {
+                _logger.LogWarning(
+                    "No valid consecutive streak candidates for Activity {ActivityId}. RequiredDuration: {RequiredDuration}, ExcludedSlots: {ExcludedCount}",
+                    activity.Id,
+                    requiredDuration,
+                    excludedSlots.Count
                 );
 
                 unscheduledActivities.Add(activity.Id);
@@ -335,18 +360,17 @@ public class RankingAlgorithmStrategy(
             }
 
             _logger.LogInformation(
-                "Found {CandidateCount} valid candidates for Activity {ActivityId}",
-                validCandidates.Count,
+                "Found {CandidateCount} valid streak candidates for Activity {ActivityId}",
+                streakCandidates.Count,
                 activity.Id
             );
 
-            // Step 1: Calculate preference weights for all valid candidates
-            var candidateWeights = new List<(SlotResourcePair Candidate, double Weight)>();
-            
-            foreach (var candidate in validCandidates)
+            var candidateWeights = new List<((SlotResourcePair Anchor, List<SlotResourcePair> Streak) Candidate, double Weight)>();
+
+            foreach (var candidate in streakCandidates)
             {
                 var weight = await _ranker.CalculateWeightAsync(
-                    candidate,
+                    candidate.Anchor,
                     activity.AssignedUserId,
                     organizationId,
                     schedulingPeriodId
@@ -355,32 +379,29 @@ public class RankingAlgorithmStrategy(
                 candidateWeights.Add((candidate, weight));
             }
 
-            // Step 2: Order candidates by weight (descending) - preferences determine priority
             var orderedCandidates = candidateWeights
                 .OrderByDescending(cw => cw.Weight)
-                .ThenBy(cw => cw.Candidate.Rank) // Secondary sort by rank for tie-breaking
+                .ThenBy(cw => cw.Candidate.Anchor.Rank)
                 .Select(cw => cw.Candidate)
                 .ToList();
 
             var orderedWeights = candidateWeights
                 .OrderByDescending(cw => cw.Weight)
-                .ThenBy(cw => cw.Candidate.Rank)
+                .ThenBy(cw => cw.Candidate.Anchor.Rank)
                 .Select(cw => cw.Weight)
                 .ToArray();
 
             _logger.LogDebug(
-                "Ordered {CandidateCount} valid candidates by preference weight for Activity {ActivityId}. Top weight: {TopWeight:F2}",
+                "Ordered {CandidateCount} valid streak candidates by preference weight for Activity {ActivityId}. Top weight: {TopWeight:F2}",
                 orderedCandidates.Count,
                 activity.Id,
                 orderedWeights.Length > 0 ? orderedWeights[0] : 0.0
             );
 
-            // Step 3: Select from ordered candidates using weighted random sampling
-            // This ensures preferences are respected while still allowing some randomness
             if (orderedCandidates.Count == 0)
             {
                 _logger.LogWarning(
-                    "No valid candidates remaining after filtering for Activity {ActivityId}. Excluded slots: {ExcludedCount}",
+                    "No valid streak candidates remaining after ordering for Activity {ActivityId}. Excluded slots: {ExcludedCount}",
                     activity.Id,
                     excludedSlots.Count
                 );
@@ -388,45 +409,48 @@ public class RankingAlgorithmStrategy(
                 continue;
             }
 
-            // CRITICAL: Final validation - ensure no excluded slots made it through
-            var excludedInOrdered = orderedCandidates.Where(c => excludedSlots.Contains(c.SlotId)).ToList();
+            var excludedInOrdered = orderedCandidates
+                .Where(c => c.Streak.Any(s => excludedSlots.Contains(s.SlotId)))
+                .ToList();
+
             if (excludedInOrdered.Any())
             {
                 _logger.LogError(
-                    "CRITICAL: Found {Count} excluded slots in ordered candidates for Activity {ActivityId}. Removing them immediately. Excluded slot IDs: {SlotIds}",
+                    "CRITICAL: Found {Count} streak candidates containing excluded slots for Activity {ActivityId}. Removing them immediately.",
                     excludedInOrdered.Count,
-                    activity.Id,
-                    string.Join(", ", excludedInOrdered.Select(c => c.SlotId))
+                    activity.Id
                 );
-                // Remove excluded slots and their corresponding weights
+
                 var validOrdered = orderedCandidates
-                    .Where(c => !excludedSlots.Contains(c.SlotId))
+                    .Where(c => c.Streak.All(s => !excludedSlots.Contains(s.SlotId)))
                     .ToList();
-                
+
                 if (validOrdered.Count == 0)
                 {
                     _logger.LogWarning(
-                        "No valid candidates remaining after removing excluded slots for Activity {ActivityId}",
+                        "No valid streak candidates remaining after removing excluded slots for Activity {ActivityId}",
                         activity.Id
                     );
                     unscheduledActivities.Add(activity.Id);
                     continue;
                 }
-                
-                // Rebuild weights array for remaining candidates
+
                 var weightDict = candidateWeights.ToDictionary(cw => cw.Candidate, cw => cw.Weight);
                 orderedCandidates = validOrdered;
                 orderedWeights = validOrdered.Select(c => weightDict[c]).ToArray();
             }
 
-            var selected = _ranker.SelectRandomWeighted(orderedCandidates, orderedWeights);
-            
-            // CRITICAL: Final check before assignment - if selected slot is excluded, fail
-            if (excludedSlots.Contains(selected.SlotId))
+            var selectedAnchor = _ranker.SelectRandomWeighted(
+                orderedCandidates.Select(c => c.Anchor).ToList(),
+                orderedWeights
+            );
+
+            var selected = orderedCandidates.First(c => c.Anchor == selectedAnchor);
+
+            if (selected.Streak.Any(s => excludedSlots.Contains(s.SlotId)))
             {
                 _logger.LogError(
-                    "CRITICAL CONSTRAINT VIOLATION: Selected slot {SlotId} is in excluded slots for Activity {ActivityId}. Excluded slots: {ExcludedCount}. This should never happen!",
-                    selected.SlotId,
+                    "CRITICAL CONSTRAINT VIOLATION: Selected streak includes excluded slot(s) for Activity {ActivityId}. Excluded slots: {ExcludedCount}. This should never happen!",
                     activity.Id,
                     excludedSlots.Count
                 );
@@ -439,25 +463,28 @@ public class RankingAlgorithmStrategy(
             }
 
             _logger.LogInformation(
-                "Matched Activity {ActivityId} to {Candidate} (validated against {ExcludedCount} excluded slots)",
+                "Matched Activity {ActivityId} to streak of {SlotCount} slots with Resource {ResourceId} (validated against {ExcludedCount} excluded slots)",
                 activity.Id,
-                selected,
+                selected.Streak.Count,
+                selected.Anchor.ResourceId,
                 excludedSlots.Count
             );
 
-            // Create assignment
-            var assignment = new Assignment
+            foreach (var pair in selected.Streak.OrderBy(s => s.Slot.FromTime))
             {
-                Id = Guid.NewGuid(),
-                OrganizationId = organizationId,
-                SlotId = selected.SlotId,
-                ResourceId = selected.ResourceId,
-                ActivityId = activity.Id,
-            };
+                var assignment = new Assignment
+                {
+                    Id = Guid.NewGuid(),
+                    OrganizationId = organizationId,
+                    SlotId = pair.SlotId,
+                    ResourceId = pair.ResourceId,
+                    ActivityId = activity.Id,
+                };
 
-            await _assignmentRepository.AddAsync(assignment);
-            occupiedPairs.Add((selected.SlotId, selected.ResourceId));
-            createdAssignments++;
+                await _assignmentRepository.AddAsync(assignment);
+                occupiedPairs.Add((pair.SlotId, pair.ResourceId));
+                createdAssignments++;
+            }
 
             if (createdAssignments % 10 == 0)
             {
@@ -480,6 +507,94 @@ public class RankingAlgorithmStrategy(
                 ? $"{unscheduledActivities.Count} activities could not be scheduled"
                 : null
         );
+    }
+
+    private static TimeSpan GetRequiredDuration(Activity activity)
+    {
+        if (activity.Duration <= 0)
+        {
+            return TimeSpan.Zero;
+        }
+
+        return TimeSpan.FromMinutes(activity.Duration);
+    }
+
+    private static bool AreConsecutive(Slot current, Slot next)
+    {
+        return current.Weekday == next.Weekday && current.ToTime == next.FromTime;
+    }
+
+    private static TimeSpan GetSlotDuration(Slot slot)
+    {
+        return slot.ToTime - slot.FromTime;
+    }
+
+    private async Task<List<SlotResourcePair>?> TryBuildConsecutiveStreakAsync(
+        Activity activity,
+        SlotResourcePair startPair,
+        TimeSpan requiredDuration,
+        Dictionary<Guid, List<Slot>> slotsByResource,
+        Dictionary<(Guid SlotId, Guid ResourceId), SlotResourcePair> pairByKey,
+        HashSet<Guid> excludedSlots,
+        HashSet<(Guid SlotId, Guid ResourceId)> occupiedPairs
+    )
+    {
+        if (!slotsByResource.TryGetValue(startPair.ResourceId, out var resourceSlots))
+        {
+            return null;
+        }
+
+        var startDuration = GetSlotDuration(startPair.Slot);
+        if (startDuration <= TimeSpan.Zero || startDuration > requiredDuration)
+        {
+            return null;
+        }
+
+        var streak = new List<SlotResourcePair> { startPair };
+        var totalDuration = startDuration;
+        var currentSlot = startPair.Slot;
+
+        while (totalDuration < requiredDuration)
+        {
+            var nextSlot = resourceSlots.FirstOrDefault(s => AreConsecutive(currentSlot, s));
+            if (nextSlot == null)
+            {
+                return null;
+            }
+
+            if (excludedSlots.Contains(nextSlot.Id))
+            {
+                return null;
+            }
+
+            var nextKey = (nextSlot.Id, startPair.ResourceId);
+            if (occupiedPairs.Contains(nextKey) || !pairByKey.TryGetValue(nextKey, out var nextPair))
+            {
+                return null;
+            }
+
+            var canAssign = await _constraintEvaluator.CanAssignAsync(
+                activity,
+                nextPair.Slot,
+                nextPair.Resource
+            );
+            if (!canAssign)
+            {
+                return null;
+            }
+
+            var nextDuration = GetSlotDuration(nextSlot);
+            if (nextDuration <= TimeSpan.Zero)
+            {
+                return null;
+            }
+
+            streak.Add(nextPair);
+            totalDuration += nextDuration;
+            currentSlot = nextSlot;
+        }
+
+        return totalDuration == requiredDuration ? streak : null;
     }
 
 }

@@ -1,5 +1,6 @@
 using Chronos.Data.Repositories.Resources;
 using Chronos.Domain.Resources;
+using Chronos.Shared.Exceptions;
 
 namespace Chronos.MainApi.Resources.Services;
 
@@ -14,6 +15,13 @@ public class ResourceAttributeAssignmentService(
             organizationId, resourceId, resourceAttributeId);
 
         await validationService.ValidationOrganizationAsync(organizationId);
+
+        if (await resourceAttributeAssignmentRepository.ExistsAsync(resourceId, resourceAttributeId))
+        {
+            logger.LogWarning("Resource attribute assignment already exists. ResourceId: {ResourceId}, ResourceAttributeId: {ResourceAttributeId}, OrganizationId: {OrganizationId}",
+                resourceId, resourceAttributeId, organizationId);
+            throw new BadRequestException("Resource attribute assignment already exists for this resource and attribute pair.");
+        }
 
         var resourceAttributeAssignment = new ResourceAttributeAssignment
         {
