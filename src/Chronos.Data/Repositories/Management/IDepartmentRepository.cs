@@ -9,6 +9,7 @@ public interface IDepartmentRepository
     Task AddAsync(Department department, CancellationToken cancellationToken = default);
     Task UpdateAsync(Department department, CancellationToken cancellationToken = default);
     Task DeleteAsync(Department department, CancellationToken cancellationToken = default);
+    Task<int> DeleteAllByOrganizationIdAsync(Guid organizationId, CancellationToken ct = default);
     Task<bool> ExistsAsync(Guid id, CancellationToken cancellationToken = default);
     Task<List<Department>> GetAllDeletedAsync(CancellationToken cancellationToken = default);
 }

@@ -37,6 +37,17 @@ public class DepartmentRepository(AppDbContext context) : IDepartmentRepository
         await context.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<int> DeleteAllByOrganizationIdAsync(Guid organizationId, CancellationToken ct = default)
+    {
+        var departments = await context.Departments
+            .IgnoreQueryFilters()
+            .Where(d => d.OrganizationId == organizationId)
+            .ToListAsync(ct);
+        context.Departments.RemoveRange(departments);
+        await context.SaveChangesAsync(ct);
+        return departments.Count;
+    }
+
     public async Task<bool> ExistsAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return await context.Departments
