@@ -38,6 +38,17 @@ public class ResourceRepository(AppDbContext context) : IResourceRepository
         await context.SaveChangesAsync();
     }
 
+    public async Task<int> DeleteAllByOrganizationIdAsync(Guid organizationId, CancellationToken ct = default)
+    {
+        var resources = await context.Resources
+            .IgnoreQueryFilters()
+            .Where(r => r.OrganizationId == organizationId)
+            .ToListAsync(ct);
+        context.Resources.RemoveRange(resources);
+        await context.SaveChangesAsync(ct);
+        return resources.Count;
+    }
+
     public async Task<bool> ExistsAsync(Guid id)
     {
         return await context.Resources
