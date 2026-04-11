@@ -45,6 +45,17 @@ public class SlotRepository(AppDbContext context) : ISlotRepository
         await context.SaveChangesAsync();
     }
 
+    public async Task<int> DeleteAllByOrganizationIdAsync(Guid organizationId, CancellationToken ct = default)
+    {
+        var slots = await context.Slots
+            .IgnoreQueryFilters()
+            .Where(s => s.OrganizationId == organizationId)
+            .ToListAsync(ct);
+        context.Slots.RemoveRange(slots);
+        await context.SaveChangesAsync(ct);
+        return slots.Count;
+    }
+
     public async Task<bool> ExistsAsync(Guid id)
     {
         return await context.Slots

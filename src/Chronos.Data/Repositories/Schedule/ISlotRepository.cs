@@ -15,6 +15,7 @@ public interface ISlotRepository
     Task UpdateAsync(Slot slot);
 
     Task DeleteAsync(Slot slot);
+    Task<int> DeleteAllByOrganizationIdAsync(Guid organizationId, CancellationToken ct = default);
 
     Task<bool> ExistsAsync(Guid id);
 }

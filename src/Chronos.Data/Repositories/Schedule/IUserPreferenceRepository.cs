@@ -20,6 +20,7 @@ public interface IUserPreferenceRepository
     Task UpdateAsync(UserPreference preference);
 
     Task DeleteAsync(UserPreference preference);
+    Task<int> DeleteAllByOrganizationIdAsync(Guid organizationId, CancellationToken ct = default);
 
     Task<bool> ExistsAsync(Guid id);
 }

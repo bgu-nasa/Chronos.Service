@@ -73,6 +73,17 @@ namespace Chronos.Data.Repositories.Schedule
             await context.SaveChangesAsync();
         }
 
+        public async Task<int> DeleteAllByOrganizationIdAsync(Guid organizationId, CancellationToken ct = default)
+        {
+            var schedulingPeriods = await context.SchedulingPeriods
+                .IgnoreQueryFilters()
+                .Where(sp => sp.OrganizationId == organizationId)
+                .ToListAsync(ct);
+            context.SchedulingPeriods.RemoveRange(schedulingPeriods);
+            await context.SaveChangesAsync(ct);
+            return schedulingPeriods.Count;
+        }
+
         public async Task<bool> ExistsAsync(Guid id)
         {
             return await context.SchedulingPeriods

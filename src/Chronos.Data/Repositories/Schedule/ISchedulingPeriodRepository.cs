@@ -15,6 +15,7 @@ public interface ISchedulingPeriodRepository
     Task UpdateAsync(SchedulingPeriod schedulingPeriod);
 
     Task DeleteAsync(SchedulingPeriod schedulingPeriod);
+    Task<int> DeleteAllByOrganizationIdAsync(Guid organizationId, CancellationToken ct = default);
 
     Task<bool> ExistsAsync(Guid id);
 

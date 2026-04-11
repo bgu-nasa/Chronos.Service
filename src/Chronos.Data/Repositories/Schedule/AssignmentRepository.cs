@@ -114,6 +114,34 @@ public class AssignmentRepository(AppDbContext context) : IAssignmentRepository
         await context.SaveChangesAsync();
     }
 
+    public async Task<int> DeleteAllByOrganizationIdAsync(Guid organizationId, CancellationToken ct = default)
+    {
+        var assignments = await context.Assignments
+            .IgnoreQueryFilters()
+            .Where(a => a.OrganizationId == organizationId)
+            .ToListAsync(ct);
+        context.Assignments.RemoveRange(assignments);
+        await context.SaveChangesAsync(ct);
+        return assignments.Count;
+    }
+
+    public async Task<int> DeleteAllByDepartmentIdAsync(Guid departmentId, CancellationToken ct = default)
+    {
+        var activityIds = await context.Subjects
+            .IgnoreQueryFilters()
+            .Where(s => s.DepartmentId == departmentId)
+            .Join(context.Activities.IgnoreQueryFilters(),
+                s => s.Id, a => a.SubjectId, (s, a) => a.Id)
+            .ToListAsync(ct);
+        var assignments = await context.Assignments
+            .IgnoreQueryFilters()
+            .Where(a => activityIds.Contains(a.ActivityId))
+            .ToListAsync(ct);
+        context.Assignments.RemoveRange(assignments);
+        await context.SaveChangesAsync(ct);
+        return assignments.Count;
+    }
+
     public async Task<bool> ExistsAsync(Guid id)
     {
         return await context.Assignments

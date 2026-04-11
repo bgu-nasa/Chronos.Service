@@ -15,6 +15,7 @@ public interface IOrganizationPolicyRepository
     Task UpdateAsync(OrganizationPolicy policy);
 
     Task DeleteAsync(OrganizationPolicy policy);
+    Task<int> DeleteAllByOrganizationIdAsync(Guid organizationId, CancellationToken ct = default);
 
     Task<bool> ExistsAsync(Guid id);
 }
