@@ -67,6 +67,17 @@ public class UserRepository(AppDbContext context) : IUserRepository
         
     }
 
+    public async Task<int> DeleteAllByOrganizationIdAsync(Guid organizationId, CancellationToken ct = default)
+    {
+        var users = await context.Users
+            .IgnoreQueryFilters()
+            .Where(u => u.OrganizationId == organizationId)
+            .ToListAsync(ct);
+        context.Users.RemoveRange(users);
+        await context.SaveChangesAsync(ct);
+        return users.Count;
+    }
+
     public async Task<bool> ExistsAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return await context.Users
