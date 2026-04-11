@@ -15,6 +15,8 @@ public interface IActivityConstraintRepository
     Task UpdateAsync(ActivityConstraint constraint);
 
     Task DeleteAsync(ActivityConstraint constraint);
+    Task<int> DeleteAllByOrganizationIdAsync(Guid organizationId, CancellationToken ct = default);
+    Task<int> DeleteAllByDepartmentIdAsync(Guid departmentId, CancellationToken ct = default);
 
     Task<bool> ExistsAsync(Guid id);
 }

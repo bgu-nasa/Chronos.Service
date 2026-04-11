@@ -42,6 +42,34 @@ public class ActivityConstraintRepository(AppDbContext context) : IActivityConst
         await context.SaveChangesAsync();
     }
 
+    public async Task<int> DeleteAllByOrganizationIdAsync(Guid organizationId, CancellationToken ct = default)
+    {
+        var activityConstraints = await context.ActivityConstraints
+            .IgnoreQueryFilters()
+            .Where(ac => ac.OrganizationId == organizationId)
+            .ToListAsync(ct);
+        context.ActivityConstraints.RemoveRange(activityConstraints);
+        await context.SaveChangesAsync(ct);
+        return activityConstraints.Count;
+    }
+
+    public async Task<int> DeleteAllByDepartmentIdAsync(Guid departmentId, CancellationToken ct = default)
+    {
+        var activityIds = await context.Subjects
+            .IgnoreQueryFilters()
+            .Where(s => s.DepartmentId == departmentId)
+            .Join(context.Activities.IgnoreQueryFilters(),
+                s => s.Id, a => a.SubjectId, (s, a) => a.Id)
+            .ToListAsync(ct);
+        var activityConstraints = await context.ActivityConstraints
+            .IgnoreQueryFilters()
+            .Where(ac => activityIds.Contains(ac.ActivityId))
+            .ToListAsync(ct);
+        context.ActivityConstraints.RemoveRange(activityConstraints);
+        await context.SaveChangesAsync(ct);
+        return activityConstraints.Count;
+    }
+
     public async Task<bool> ExistsAsync(Guid id)
     {
         return await context.ActivityConstraints.AnyAsync(ac => ac.Id == id);
