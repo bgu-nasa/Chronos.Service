@@ -9,4 +9,6 @@ public interface IActivityRepository
     Task AddAsync(Activity activity);
     Task UpdateAsync(Activity activity);
     Task DeleteAsync(Activity activity);
+    Task<int> DeleteAllByOrganizationIdAsync(Guid organizationId, CancellationToken ct = default);
+    Task<int> DeleteAllByDepartmentIdAsync(Guid departmentId, CancellationToken ct = default);
 }
