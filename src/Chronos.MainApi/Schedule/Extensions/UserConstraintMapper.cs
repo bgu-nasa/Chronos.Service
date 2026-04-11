@@ -11,6 +11,7 @@ public static class UserConstraintMapper
             OrganizationId: constraint.OrganizationId.ToString(),
             UserId: constraint.UserId.ToString(),
             SchedulingPeriodId: constraint.SchedulingPeriodId.ToString(),
+            WeekNum: constraint.WeekNum,
             Key: constraint.Key,
             Value: constraint.Value
         );
