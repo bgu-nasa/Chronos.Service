@@ -9,5 +9,6 @@ public interface IResourceRepository
     Task AddAsync(Resource resource);
     Task UpdateAsync(Resource resource);
     Task DeleteAsync(Resource resource);
+    Task<int> DeleteAllByOrganizationIdAsync(Guid organizationId, CancellationToken ct = default);
     Task<bool> ExistsAsync(Guid id);
 }
