@@ -36,6 +36,17 @@ public class ResourceAttributeAssignmentRepository(AppDbContext context) : IReso
         await context.SaveChangesAsync();
     }
 
+    public async Task<int> DeleteAllByOrganizationIdAsync(Guid organizationId, CancellationToken ct = default)
+    {
+        var resourceAttributeAssignments = await context.ResourceAttributeAssignments
+            .IgnoreQueryFilters()
+            .Where(raa => raa.OrganizationId == organizationId)
+            .ToListAsync(ct);
+        context.ResourceAttributeAssignments.RemoveRange(resourceAttributeAssignments);
+        await context.SaveChangesAsync(ct);
+        return resourceAttributeAssignments.Count;
+    }
+
     public async Task<bool> ExistsAsync(Guid resourceId, Guid resourceAttributeId)
     {
         return await context.ResourceAttributeAssignments
