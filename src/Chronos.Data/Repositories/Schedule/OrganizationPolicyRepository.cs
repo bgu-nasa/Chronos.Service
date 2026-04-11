@@ -44,6 +44,17 @@ public class OrganizationPolicyRepository(AppDbContext context) : IOrganizationP
         await context.SaveChangesAsync();
     }
 
+    public async Task<int> DeleteAllByOrganizationIdAsync(Guid organizationId, CancellationToken ct = default)
+    {
+        var organizationPolicies = await context.OrganizationPolicies
+            .IgnoreQueryFilters()
+            .Where(op => op.OrganizationId == organizationId)
+            .ToListAsync(ct);
+        context.OrganizationPolicies.RemoveRange(organizationPolicies);
+        await context.SaveChangesAsync(ct);
+        return organizationPolicies.Count;
+    }
+
     public async Task<bool> ExistsAsync(Guid id)
     {
         return await context.OrganizationPolicies
