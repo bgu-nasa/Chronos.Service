@@ -17,7 +17,7 @@ public interface IConstraintEvaluator
     /// <param name="slot">The time slot</param>
     /// <param name="resource">The resource (e.g., room, equipment)</param>
     /// <returns>True if assignment is valid (no hard constraint violations), false otherwise</returns>
-    Task<bool> CanAssignAsync(Activity activity, Slot slot, Resource resource);
+    Task<bool> CanAssignAsync(Activity activity, Slot slot, Resource resource, int? weekNum = null);
 
     /// <summary>
     /// Gets all constraint violations for the given Activity, Slot, and Resource combination
@@ -29,6 +29,7 @@ public interface IConstraintEvaluator
     Task<IEnumerable<ConstraintViolation>> GetViolationsAsync(
         Activity activity,
         Slot slot,
-        Resource resource
+        Resource resource,
+        int? weekNum = null
     );
 }

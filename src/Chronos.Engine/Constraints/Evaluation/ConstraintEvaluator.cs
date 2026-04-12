@@ -24,9 +24,9 @@ public class ConstraintEvaluator : IConstraintEvaluator
     }
 
     /// <inheritdoc />
-    public async Task<bool> CanAssignAsync(Activity activity, Slot slot, Resource resource)
+    public async Task<bool> CanAssignAsync(Activity activity, Slot slot, Resource resource, int? weekNum = null)
     {
-        var violations = await GetViolationsAsync(activity, slot, resource);
+        var violations = await GetViolationsAsync(activity, slot, resource, weekNum);
 
         // Assignment is valid only if there are no hard constraint violations
         var hasHardViolations = violations.Any(v => v.ViolationType == ViolationType.Hard);
@@ -38,7 +38,8 @@ public class ConstraintEvaluator : IConstraintEvaluator
     public async Task<IEnumerable<ConstraintViolation>> GetViolationsAsync(
         Activity activity,
         Slot slot,
-        Resource resource
+        Resource resource,
+        int? weekNum = null
     )
     {
         // Create a scope to resolve scoped dependencies (repository and validators)
@@ -50,6 +51,12 @@ public class ConstraintEvaluator : IConstraintEvaluator
 
         // Load all constraints for this activity
         var constraints = await constraintRepository.GetByActivityIdAsync(activity.Id);
+        if (weekNum.HasValue)
+        {
+            constraints = constraints
+                .Where(constraint => !constraint.WeekNum.HasValue || constraint.WeekNum.Value == weekNum.Value)
+                .ToList();
+        }
 
         _logger.LogInformation(
             "Evaluating {ConstraintCount} constraints for Activity {ActivityId} with Slot {SlotId} and Resource {ResourceId}",
