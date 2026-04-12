@@ -7,4 +7,5 @@ public class Assignment : ObjectInformation
     public Guid SlotId { get; set; }
     public Guid ResourceId { get; set; }
     public Guid ActivityId { get; set; }
+    public int? WeekNum { get; set; }
 }
