@@ -202,7 +202,8 @@ public class ScheduleController(
             organizationId,
             request.SlotId,
             request.ResourceId,
-            request.ActivityId);
+            request.ActivityId,
+            request.WeekNum);
 
         var assignment = await assignmentService.GetAssignmentAsync(organizationId, assignmentId);
         var response = assignment.ToAssignmentResponse();
@@ -294,7 +295,8 @@ public class ScheduleController(
             assignmentId,
             request.SlotId,
             request.ResourceId,
-            request.ActivityId);
+            request.ActivityId,
+            request.WeekNum);
 
         return NoContent();
     }

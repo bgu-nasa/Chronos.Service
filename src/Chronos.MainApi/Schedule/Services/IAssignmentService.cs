@@ -4,7 +4,7 @@ namespace Chronos.MainApi.Schedule.Services;
 
 public interface IAssignmentService
 {
-    Task<Guid> CreateAssignmentAsync(Guid organizationId, Guid slotId, Guid resourceId, Guid ScheduledItemId);
+    Task<Guid> CreateAssignmentAsync(Guid organizationId, Guid slotId, Guid resourceId, Guid ScheduledItemId, int? weekNum = null);
     
     Task<Assignment> GetAssignmentAsync(Guid organizationId, Guid assignmentId);
     
@@ -22,7 +22,7 @@ public interface IAssignmentService
     
     Task<Assignment?> GetAssignmentBySlotAndResourceItemAsync(Guid organizationId, Guid slotId, Guid resourceId);
     
-    Task UpdateAssignmentAsync(Guid organizationId, Guid assignmentId, Guid slotId, Guid resourceId , Guid activityId);
+    Task UpdateAssignmentAsync(Guid organizationId, Guid assignmentId, Guid slotId, Guid resourceId , Guid activityId, int? weekNum = null);
     
     Task DeleteAssignmentAsync(Guid organizationId, Guid assignmentId);
     Task DeleteAssignmentsBySchedulingPeriodAsync(Guid organizationId, Guid schedulingPeriodId);
