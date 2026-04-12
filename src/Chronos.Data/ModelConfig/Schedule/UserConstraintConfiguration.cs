@@ -22,6 +22,9 @@ public class UserConstraintConfiguration : IEntityTypeConfiguration<UserConstrai
         builder.Property(uc => uc.SchedulingPeriodId)
             .IsRequired();
 
+        builder.Property(uc => uc.WeekNum)
+            .IsRequired(false);
+
         builder.Property(uc => uc.Key)
             .IsRequired()
             .HasMaxLength(256);

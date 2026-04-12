@@ -60,6 +60,17 @@ public class UserPreferenceRepository(AppDbContext context) : IUserPreferenceRep
         await context.SaveChangesAsync();
     }
 
+    public async Task<int> DeleteAllByOrganizationIdAsync(Guid organizationId, CancellationToken ct = default)
+    {
+        var userPreferences = await context.UserPreferences
+            .IgnoreQueryFilters()
+            .Where(up => up.OrganizationId == organizationId)
+            .ToListAsync(ct);
+        context.UserPreferences.RemoveRange(userPreferences);
+        await context.SaveChangesAsync(ct);
+        return userPreferences.Count;
+    }
+
     public async Task<bool> ExistsAsync(Guid id)
     {
         return await context.UserPreferences

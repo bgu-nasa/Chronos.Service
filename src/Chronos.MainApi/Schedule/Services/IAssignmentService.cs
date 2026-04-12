@@ -8,7 +8,13 @@ public interface IAssignmentService
     
     Task<Assignment> GetAssignmentAsync(Guid organizationId, Guid assignmentId);
     
-    Task<List<Assignment>> GetAllAssignmentsAsync(Guid organizationId);
+    Task<List<Assignment>> GetAllAssignmentsAsync(
+        Guid organizationId,
+        Guid? slotId = null,
+        Guid? resourceId = null,
+        Guid? activityId = null,
+        Guid? userId = null,
+        Guid? schedulingPeriodId = null);
     
     Task<List<Assignment>> GetAssignmentsBySlotAsync(Guid organizationId, Guid slotId);
     

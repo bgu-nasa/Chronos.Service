@@ -1,8 +1,9 @@
-﻿using Chronos.Domain.Schedule;
+﻿using Chronos.Data.Repositories.Common;
+using Chronos.Domain.Schedule;
 
 namespace Chronos.Data.Repositories.Schedule;
 
-public interface IActivityConstraintRepository
+public interface IActivityConstraintRepository : IDepartmentScopedRepository
 {
     Task<ActivityConstraint?> GetByIdAsync(Guid id);
 
@@ -15,6 +16,5 @@ public interface IActivityConstraintRepository
     Task UpdateAsync(ActivityConstraint constraint);
 
     Task DeleteAsync(ActivityConstraint constraint);
-
     Task<bool> ExistsAsync(Guid id);
 }

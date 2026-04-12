@@ -1,7 +1,10 @@
 using System.Diagnostics;
 using System.Text.Json;
+using Chronos.Data.Repositories.Resources;
 using Chronos.Data.Repositories.Schedule;
 using Chronos.Domain.Schedule;
+using Chronos.Domain.Schedule.Messages;
+using Chronos.MainApi.Schedule.Messaging;
 using Chronos.MainApi.Shared.ExternalMangement;
 using Chronos.Shared.Exceptions;
 
@@ -10,25 +13,51 @@ namespace Chronos.MainApi.Schedule.Services;
 public class ActivityConstraintService(
     IActivityConstraintRepository activityConstraintRepository,
     ILogger<ActivityConstraintService> logger,
-    IManagementExternalService validationService
+    IManagementExternalService validationService,
+    IMessagePublisher messagePublisher,
+    IActivityRepository activityRepository,
+    ISubjectRepository subjectRepository
 ) : IActivityConstraintService
 {
 
 
-    public async Task<Guid> CreateActivityConstraintAsync(Guid organizationId, Guid activityId, string key, string value)
+    public async Task<Guid> CreateActivityConstraintAsync(Guid organizationId, Guid activityId, string key, string value, int? weekNum = null)
     {
-        
+
         await validationService.ValidateOrganizationAsync(organizationId);
         ValidateConstraintValue(key, value);
+        var activity = await activityRepository.GetByIdAsync(activityId);
+        if (activity == null || activity.OrganizationId != organizationId)
+        {
+            logger.LogInformation("Activity {ActivityId} not found for Organization {OrganizationId}", activityId, organizationId);
+            throw new NotFoundException($"Activity with ID {activityId} not found in organization {organizationId}.");
+        }
         var constraint = new ActivityConstraint
         {
             Id = Guid.NewGuid(),
             OrganizationId = organizationId,
             ActivityId = activityId,
+            WeekNum = weekNum,
             Key = key,
             Value = value
         };
         await activityConstraintRepository.AddAsync(constraint);
+        var schedulingPeriodId = await ResolveSchedulingPeriodIdAsync(constraint.ActivityId);
+
+        await messagePublisher.PublishAsync(
+            new HandleConstraintChangeRequest(
+                ActivityConstraintId: constraint.Id,
+                OrganizationId: organizationId,
+                SchedulingPeriodId: schedulingPeriodId,
+                Scope: ConstraintScope.Activity,
+                Operation: ConstraintChangeOperation.Created,
+                ActivityId: constraint.ActivityId,
+                UserId: null,
+                Mode: SchedulingMode.Online
+            ),
+            "request.online"
+        );
+
         logger.LogInformation("Created ActivityConstraint {ActivityConstraintId} for Organization {OrganizationId}", constraint.Id, organizationId);
         return constraint.Id;
     }
@@ -62,14 +91,31 @@ public class ActivityConstraintService(
     }
 
     public async Task<ActivityConstraint> UpdateActivityConstraintAsync(Guid organizationId, Guid activityConstraintId,
-        string key, string value)
+        string key, string value, int? weekNum = null)
     {
         logger.LogInformation("Updating ActivityConstraint {ActivityConstraintId} for Organization {OrganizationId}", activityConstraintId, organizationId);
         ValidateConstraintValue(key, value);
         var constraint = await ValidateAndGetActivityConstraintAsync(organizationId, activityConstraintId);
+        constraint.WeekNum = weekNum;
         constraint.Key = key;
         constraint.Value = value;
         await activityConstraintRepository.UpdateAsync(constraint);
+
+        var schedulingPeriodId = await ResolveSchedulingPeriodIdAsync(constraint.ActivityId);
+        await messagePublisher.PublishAsync(
+            new HandleConstraintChangeRequest(
+                ActivityConstraintId: constraint.Id,
+                OrganizationId: organizationId,
+                SchedulingPeriodId: schedulingPeriodId,
+                Scope: ConstraintScope.Activity,
+                Operation: ConstraintChangeOperation.Updated,
+                ActivityId: constraint.ActivityId,
+                UserId: null,
+                Mode: SchedulingMode.Online
+            ),
+            "request.online"
+        );
+
         logger.LogInformation("Updated ActivityConstraint {ActivityConstraintId} for Organization {OrganizationId}", activityConstraintId, organizationId);
         return constraint;
     }
@@ -78,7 +124,24 @@ public class ActivityConstraintService(
     {
         logger.LogInformation("Deleting ActivityConstraint {ActivityConstraintId} for Organization {OrganizationId}", activityConstraintId, organizationId);
         var constraint = await ValidateAndGetActivityConstraintAsync(organizationId, activityConstraintId);
+        var schedulingPeriodId = await ResolveSchedulingPeriodIdAsync(constraint.ActivityId);
+
         await activityConstraintRepository.DeleteAsync(constraint);
+
+        await messagePublisher.PublishAsync(
+            new HandleConstraintChangeRequest(
+                ActivityConstraintId: constraint.Id,
+                OrganizationId: organizationId,
+                SchedulingPeriodId: schedulingPeriodId,
+                Scope: ConstraintScope.Activity,
+                Operation: ConstraintChangeOperation.Deleted,
+                ActivityId: constraint.ActivityId,
+                UserId: null,
+                Mode: SchedulingMode.Online
+            ),
+            "request.online"
+        );
+
         logger.LogInformation("Deleted ActivityConstraint {ActivityConstraintId} for Organization {OrganizationId}", activityConstraintId, organizationId);
     }
 
@@ -94,7 +157,7 @@ public class ActivityConstraintService(
         }
         return activityConstraint;
     }
-    private void ValidateConstraintValue(string key, string value)
+    private static void ValidateConstraintValue(string key, string value)
     {
         if (string.IsNullOrWhiteSpace(value))
         {
@@ -118,5 +181,31 @@ public class ActivityConstraintService(
             }
         }
         // For non-JSON constraints, just ensure it's not empty (format validation happens in validators)
+    }
+
+    private async Task<Guid> ResolveSchedulingPeriodIdAsync(Guid activityId)
+    {
+        var activity = await activityRepository.GetByIdAsync(activityId);
+        if (activity == null)
+        {
+            logger.LogWarning(
+                "Could not resolve scheduling period for Activity {ActivityId}: activity not found. Using empty period id.",
+                activityId
+            );
+            return Guid.Empty;
+        }
+
+        var subject = await subjectRepository.GetByIdAsync(activity.SubjectId);
+        if (subject == null)
+        {
+            logger.LogWarning(
+                "Could not resolve scheduling period for Activity {ActivityId}: subject {SubjectId} not found. Using empty period id.",
+                activityId,
+                activity.SubjectId
+            );
+            return Guid.Empty;
+        }
+
+        return subject.SchedulingPeriodId;
     }
 }

@@ -12,7 +12,8 @@ public static class ActivityMapper
             SubjectId: activity.SubjectId,
             AssignedUserId: activity.AssignedUserId,
             ActivityType: activity.ActivityType,
-            ExpectedStudents: activity.ExpectedStudents
+            ExpectedStudents: activity.ExpectedStudents,
+            Duration: activity.Duration
         );
 }
 

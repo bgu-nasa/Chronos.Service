@@ -1,12 +1,13 @@
+using Chronos.Data.Repositories.Common;
 using Chronos.Domain.Schedule;
 
 namespace Chronos.Data.Repositories.Schedule;
 
-public interface IAssignmentRepository
+public interface IAssignmentRepository : IDepartmentScopedRepository
 {
     Task<Assignment?> GetByIdAsync(Guid id);
 
-    Task<List<Assignment>> GetAllAsync();
+    Task<List<Assignment>> GetAllAsync(AssignmentQuery? query = null);
 
     Task<List<Assignment>> GetBySlotIdAsync(Guid slotId);
     Task<List<Assignment>> GetByActivityIdAsync(Guid activityId);
@@ -21,6 +22,5 @@ public interface IAssignmentRepository
 
     Task DeleteAsync(Assignment assignment);
     Task DeleteBySchedulingPeriodIdAsync(Guid schedulingPeriodId);
-
     Task<bool> ExistsAsync(Guid id);
 }

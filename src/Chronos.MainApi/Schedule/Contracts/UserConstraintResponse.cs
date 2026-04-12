@@ -5,5 +5,6 @@ public record UserConstraintResponse(
     string UserId,
     string OrganizationId,
     string SchedulingPeriodId,
+    int? WeekNum,
     string Key,
     string Value);

@@ -58,7 +58,23 @@ public class SchedulingPeriodService(
 
         return await ValidateAndGetSchedulingPeriodAsync(organizationId, schedulingPeriodId);
     }
-    
+
+    public async Task validateSchedulingPeriodAsync(Guid organizationId, Guid schedulingPeriodId)
+    {
+        logger.LogInformation(
+            "Validating scheduling period. OrganizationId: {OrganizationId}, SchedulingPeriodId: {SchedulingPeriodId}",
+            organizationId, schedulingPeriodId);
+
+        var period = await ValidateAndGetSchedulingPeriodAsync(organizationId, schedulingPeriodId);
+        if(period.ToDate < DateTime.UtcNow)
+        {
+            logger.LogInformation(
+                "Scheduling period is in the past. OrganizationId: {OrganizationId}, SchedulingPeriodId: {SchedulingPeriodId}, ToDate: {ToDate}",
+                organizationId, schedulingPeriodId, period.ToDate);
+            throw new BadRequestException("Scheduling period is in the past.");
+        }
+    }
+
     public async Task<SchedulingPeriod> GetSchedulingPeriodByNameAsync(Guid organizationId , string name)
     {
         logger.LogInformation(

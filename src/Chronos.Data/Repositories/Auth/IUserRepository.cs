@@ -1,8 +1,9 @@
-﻿using Chronos.Domain.Auth;
+﻿using Chronos.Data.Repositories.Common;
+using Chronos.Domain.Auth;
 
 namespace Chronos.Data.Repositories.Auth;
 
-public interface IUserRepository
+public interface IUserRepository : IOrganizationScopedRepository
 {
     Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken = default);

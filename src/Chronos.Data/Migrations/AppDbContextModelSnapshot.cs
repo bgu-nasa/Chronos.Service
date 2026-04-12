@@ -182,6 +182,9 @@ namespace Chronos.Data.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int>("Duration")
+                        .HasColumnType("integer");
+
                     b.Property<int?>("ExpectedStudents")
                         .HasColumnType("integer");
 
@@ -381,6 +384,9 @@ namespace Chronos.Data.Migrations
                         .HasMaxLength(1024)
                         .HasColumnType("character varying(1024)");
 
+                    b.Property<int?>("WeekNum")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
 
                     b.ToTable("activity_constraints", (string)null);
@@ -549,6 +555,9 @@ namespace Chronos.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(1024)
                         .HasColumnType("character varying(1024)");
+
+                    b.Property<int?>("WeekNum")
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 

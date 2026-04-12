@@ -10,6 +10,7 @@ public static class ActivityConstraintMapper
             Id: constraint.Id.ToString(),
             ActivityId: constraint.ActivityId.ToString(),
             OrganizationId: constraint.OrganizationId.ToString(),
+            WeekNum: constraint.WeekNum,
             Key: constraint.Key,
             Value: constraint.Value
         );

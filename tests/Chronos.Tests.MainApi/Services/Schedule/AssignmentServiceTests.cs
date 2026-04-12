@@ -460,7 +460,8 @@ public class AssignmentServiceTests
         };
 
         _validationService.ValidateOrganizationAsync(organizationId).Returns(Task.CompletedTask);
-        _assignmentRepository.GetAllAsync().Returns(assignments);
+        _assignmentRepository.GetAllAsync(Arg.Any<AssignmentQuery>())
+            .Returns(assignments.Where(a => a.OrganizationId == organizationId).ToList());
 
         var result = await _service.GetAllAssignmentsAsync(organizationId);
 

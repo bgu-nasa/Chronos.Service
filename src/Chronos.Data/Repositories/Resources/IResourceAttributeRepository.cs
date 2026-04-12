@@ -1,8 +1,9 @@
+using Chronos.Data.Repositories.Common;
 using Chronos.Domain.Resources;
 
 namespace Chronos.Data.Repositories.Resources;
 
-public interface IResourceAttributeRepository
+public interface IResourceAttributeRepository : IOrganizationScopedRepository
 {
     Task<ResourceAttribute?> GetByIdAsync(Guid id);
     Task<List<ResourceAttribute>> GetAllAsync();

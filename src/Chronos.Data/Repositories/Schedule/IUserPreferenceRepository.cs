@@ -1,8 +1,9 @@
-﻿using Chronos.Domain.Schedule;
+﻿using Chronos.Data.Repositories.Common;
+using Chronos.Domain.Schedule;
 
 namespace Chronos.Data.Repositories.Schedule;
 
-public interface IUserPreferenceRepository
+public interface IUserPreferenceRepository : IOrganizationScopedRepository
 {    
     Task<UserPreference?> GetByIdAsync(Guid id);
 
@@ -20,7 +21,6 @@ public interface IUserPreferenceRepository
     Task UpdateAsync(UserPreference preference);
 
     Task DeleteAsync(UserPreference preference);
-
     Task<bool> ExistsAsync(Guid id);
 }
 

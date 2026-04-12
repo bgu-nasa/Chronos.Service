@@ -1,8 +1,9 @@
+using Chronos.Data.Repositories.Common;
 using Chronos.Domain.Management.Roles;
 
 namespace Chronos.Data.Repositories.Management;
 
-public interface IRoleAssignmentRepository
+public interface IRoleAssignmentRepository : IDepartmentScopedRepository
 {
     Task<List<RoleAssignment>> GetUserAssignmentsAsync(Guid organizationId, Guid userId, CancellationToken cancellationToken = default);
     Task<List<RoleAssignment>> GetAllAsync(Guid organizationId, CancellationToken cancellationToken = default);

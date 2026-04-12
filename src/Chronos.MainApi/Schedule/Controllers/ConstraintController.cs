@@ -34,7 +34,8 @@ public class ConstraintController(
             organizationId,
             request.ActivityId,
             request.Key,
-            request.Value);
+            request.Value,
+            request.WeekNum);
 
         var constraint = await activityConstraintService.GetActivityConstraintByIdAsync(organizationId, constraintId);
         var response = constraint.ToActivityConstraintResponse();
@@ -95,7 +96,8 @@ public class ConstraintController(
             organizationId,
             activityConstraintId,
             request.Key,
-            request.Value);
+            request.Value,
+            request.WeekNum);
 
         return NoContent();
     }
@@ -125,7 +127,8 @@ public class ConstraintController(
             request.UserId,
             request.SchedulingPeriodId,
             request.Key,
-            request.Value);
+            request.Value,
+            request.WeekNum);
 
         var constraint = await userConstraintService.GetUserConstraintByIdAsync(organizationId, constraintId);
         var response = constraint.ToUserConstraintResponse();
@@ -212,7 +215,8 @@ public class ConstraintController(
             organizationId,
             userConstraintId,
             request.Key,
-            request.Value);
+            request.Value,
+            request.WeekNum);
 
         return NoContent();
     }

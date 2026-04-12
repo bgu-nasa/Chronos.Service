@@ -33,8 +33,40 @@ public class SubjectRepository(AppDbContext context) : ISubjectRepository
 
     public async Task DeleteAsync(Subject subject)
     {
+        var activities = await context.Activities
+        .Where(a => a.SubjectId == subject.Id)
+        .ToListAsync();
+
+        foreach (var activity in activities)
+        {
+            context.ActivityConstraints.RemoveRange(context.ActivityConstraints.Where(ac => ac.ActivityId == activity.Id));
+            context.Assignments.RemoveRange(context.Assignments.Where(a => a.ActivityId == activity.Id));
+            context.Activities.Remove(activity);
+        }
         context.Subjects.Remove(subject);
         await context.SaveChangesAsync();
+    }
+
+    public async Task<int> DeleteAllByOrganizationIdAsync(Guid organizationId, CancellationToken ct = default)
+    {
+        var subjects = await context.Subjects
+            .IgnoreQueryFilters()
+            .Where(s => s.OrganizationId == organizationId)
+            .ToListAsync(ct);
+        context.Subjects.RemoveRange(subjects);
+        await context.SaveChangesAsync(ct);
+        return subjects.Count;
+    }
+
+    public async Task<int> DeleteAllByDepartmentIdAsync(Guid departmentId, CancellationToken ct = default)
+    {
+        var subjects = await context.Subjects
+            .IgnoreQueryFilters()
+            .Where(s => s.DepartmentId == departmentId)
+            .ToListAsync(ct);
+        context.Subjects.RemoveRange(subjects);
+        await context.SaveChangesAsync(ct);
+        return subjects.Count;
     }
 
     public async Task<bool> ExistsAsync(Guid id)

@@ -1,8 +1,9 @@
+using Chronos.Data.Repositories.Common;
 using Chronos.Domain.Resources;
 
 namespace Chronos.Data.Repositories.Resources;
 
-public interface IActivityRepository
+public interface IActivityRepository : IDepartmentScopedRepository
 {
     Task<Activity?> GetByIdAsync(Guid id);
     Task<List<Activity>> GetAllAsync();

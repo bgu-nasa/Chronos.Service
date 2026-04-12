@@ -1,8 +1,9 @@
-﻿using Chronos.Domain.Schedule;
+﻿using Chronos.Data.Repositories.Common;
+using Chronos.Domain.Schedule;
 
 namespace Chronos.Data.Repositories.Schedule;
 
-public interface ISchedulingPeriodRepository
+public interface ISchedulingPeriodRepository : IOrganizationScopedRepository
 {
     Task<SchedulingPeriod?> GetByIdAsync(Guid id);
     
@@ -15,7 +16,6 @@ public interface ISchedulingPeriodRepository
     Task UpdateAsync(SchedulingPeriod schedulingPeriod);
 
     Task DeleteAsync(SchedulingPeriod schedulingPeriod);
-
     Task<bool> ExistsAsync(Guid id);
 
 }

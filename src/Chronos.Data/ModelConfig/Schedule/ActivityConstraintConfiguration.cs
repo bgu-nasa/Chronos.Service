@@ -16,6 +16,9 @@ public class ActivityConstraintConfiguration : IEntityTypeConfiguration<Activity
         builder.Property(ac => ac.ActivityId)
             .IsRequired();
 
+        builder.Property(ac => ac.WeekNum)
+            .IsRequired(false);
+
         builder.Property(ac => ac.Key)
             .IsRequired()
             .HasMaxLength(256);

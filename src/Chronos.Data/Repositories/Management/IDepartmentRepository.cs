@@ -1,8 +1,9 @@
+using Chronos.Data.Repositories.Common;
 using Chronos.Domain.Management;
 
 namespace Chronos.Data.Repositories.Management;
 
-public interface IDepartmentRepository
+public interface IDepartmentRepository : IOrganizationScopedRepository
 {
     Task<Department?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<List<Department>> GetAllAsync(CancellationToken cancellationToken = default);
