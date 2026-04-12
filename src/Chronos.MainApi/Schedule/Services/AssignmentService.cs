@@ -15,7 +15,7 @@ public class AssignmentService(
     ISchedulingPeriodService schedulingPeriodService,
     ILogger<AssignmentService> logger) : IAssignmentService
 {
-    public async Task<Guid> CreateAssignmentAsync(Guid organizationId, Guid slotId, Guid resourceId, Guid activityId)
+    public async Task<Guid> CreateAssignmentAsync(Guid organizationId, Guid slotId, Guid resourceId, Guid activityId, int? weekNum = null)
     {
         logger.LogInformation(
             "Creating assignment. OrganizationId: {OrganizationId}, SlotId: {SlotId}, ResourceId: {ResourceId}, ActivityId: {ActivityId}",
@@ -23,7 +23,7 @@ public class AssignmentService(
         
         await validationService.ValidateOrganizationAsync(organizationId);
         await ValidateDataAsync(organizationId, slotId, resourceId, activityId);
-        await validateTwoAssignmentsPerSlotPerResourceAsync(organizationId, slotId, resourceId);
+        await ValidateNoConflictingAssignmentAsync(organizationId, slotId, resourceId, weekNum);
         var assignment = new Assignment
         {
             Id = Guid.NewGuid(),
@@ -31,6 +31,7 @@ public class AssignmentService(
             SlotId = slotId,
             ResourceId = resourceId,
             ActivityId = activityId,
+            WeekNum = weekNum,
         };
         
         await assignmentRepository.AddAsync(assignment);
@@ -138,7 +139,7 @@ public class AssignmentService(
         return assignment;
     }
     
-    public async Task UpdateAssignmentAsync(Guid organizationId, Guid assignmentId, Guid slotId, Guid resourceId, Guid activityId)
+    public async Task UpdateAssignmentAsync(Guid organizationId, Guid assignmentId, Guid slotId, Guid resourceId, Guid activityId, int? weekNum = null)
     {
         logger.LogInformation(
             "Updating assignment. OrganizationId: {OrganizationId}, AssignmentId: {AssignmentId}",
@@ -146,10 +147,11 @@ public class AssignmentService(
         
         var assignment = await ValidateAndGetAssignmentAsync(organizationId, assignmentId);
         await ValidateDataAsync(organizationId, slotId, resourceId, activityId);
-        await validateTwoAssignmentsPerSlotPerResourceAsync(organizationId, slotId, resourceId , assignmentId);
+        await ValidateNoConflictingAssignmentAsync(organizationId, slotId, resourceId, weekNum, assignmentId);
         assignment.SlotId = slotId;
         assignment.ResourceId = resourceId;
         assignment.ActivityId = activityId;
+        assignment.WeekNum = weekNum;
         
         await assignmentRepository.UpdateAsync(assignment);
         
@@ -248,9 +250,14 @@ public class AssignmentService(
             logger.LogInformation("Resource {ResourceId} capacity is less than expected students for Activity {ActivityId}", resourceId, activityId);
             throw new BadRequestException("Resource capacity is less than expected students for the activity");
         }
-
     }
-    private async Task validateTwoAssignmentsPerSlotPerResourceAsync(Guid organizationId, Guid slotId, Guid resourceId, Guid? excludeAssignmentId = null) 
+
+    private async Task ValidateNoConflictingAssignmentAsync(
+        Guid organizationId,
+        Guid slotId,
+        Guid resourceId,
+        int? weekNum,
+        Guid? excludeAssignmentId = null)
     {
         var slot = await slotService.GetSlotAsync(organizationId, slotId);
         if(slot == null)
@@ -258,24 +265,34 @@ public class AssignmentService(
             logger.LogInformation("Slot {SlotId} not found for Organization {OrganizationId}", slotId, organizationId);
             throw new NotFoundException($"Slot with ID {slotId} not found in organization {organizationId}.");
         }
-        var existingAssignment = await assignmentRepository.GetByResourceIdAsync(resourceId);
-        foreach (var assignment in existingAssignment)
+        var existingAssignments = await assignmentRepository.GetByResourceIdAsync(resourceId);
+        foreach (var assignment in existingAssignments)
         {
             if(excludeAssignmentId != null && assignment.Id == excludeAssignmentId)
             {
                 continue;
             }
-            var assignedSlot = await slotService.GetSlotAsync(organizationId, assignment.SlotId);
-            if(assignedSlot.Weekday == slot.Weekday)
+
+            if (weekNum.HasValue && assignment.WeekNum.HasValue && assignment.WeekNum.Value != weekNum.Value)
             {
-                if((slot.FromTime < assignedSlot.ToTime) && (assignedSlot.FromTime < slot.ToTime))
-                {
-                    logger.LogInformation("Resource {ResourceId} already has an assignment in Slot {SlotId} which overlaps with Slot {NewSlotId}", resourceId, assignedSlot.Id, slotId);
-                    throw new BadRequestException("Resource already has an assignment in a slot that overlaps with the new slot");
-                }
+                continue;
             }
-            
+
+            var assignedSlot = await slotService.GetSlotAsync(organizationId, assignment.SlotId);
+            if (assignedSlot == null)
+            {
+                continue;
+            }
+
+            if (assignedSlot.Weekday == slot.Weekday && (slot.FromTime < assignedSlot.ToTime) && (assignedSlot.FromTime < slot.ToTime))
+            {
+                logger.LogInformation(
+                    "Resource {ResourceId} already has an assignment in Slot {SlotId} which overlaps with the new slot {NewSlotId}",
+                    resourceId,
+                    assignedSlot.Id,
+                    slotId);
+                throw new BadRequestException("Resource already has an assignment in a slot that overlaps with the new slot");
+            }
         }
     }
-    
 }

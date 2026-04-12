@@ -8,4 +8,5 @@ public class AssignmentQuery
     public Guid? ActivityId { get; set; }
     public Guid? SchedulingPeriodId { get; set; }
     public Guid? UserId { get; set; }
+    public int? WeekNum { get; set; }
 }
