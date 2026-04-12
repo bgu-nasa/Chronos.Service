@@ -47,6 +47,12 @@ public class AssignmentRepository(AppDbContext context) : IAssignmentRepository
                     .ToListAsync();
                 q = q.Where(a => activityIds.Contains(a.ActivityId));
             }
+
+            if (query.WeekNum.HasValue)
+            {
+                q = q.Where(a => a.WeekNum == query.WeekNum.Value);
+            }
+
         }
 
         return await q.ToListAsync();
@@ -66,10 +72,17 @@ public class AssignmentRepository(AppDbContext context) : IAssignmentRepository
             .ToListAsync();
     }
     
-    public async Task<Assignment?> GetBySlotIdAndResourceIdAsync(Guid slotId, Guid resourceId)
+    public async Task<Assignment?> GetBySlotIdAndResourceIdAsync(Guid slotId, Guid resourceId, int? weekNum = null)
     {
-        return await context.Assignments
-            .FirstOrDefaultAsync(a => a.SlotId == slotId && a.ResourceId == resourceId);
+        var query = context.Assignments
+            .Where(a => a.SlotId == slotId && a.ResourceId == resourceId);
+
+        if (weekNum.HasValue)
+        {
+            query = query.Where(a => a.WeekNum == weekNum.Value);
+        }
+
+        return await query.FirstOrDefaultAsync();
     }
     public async Task<List<Assignment>> GetByResourceIdAsync(Guid resourceId)
     {

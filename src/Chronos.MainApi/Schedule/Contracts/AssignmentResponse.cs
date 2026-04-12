@@ -5,4 +5,5 @@ public record AssignmentResponse(
     string OrganizationId,
     string SlotId,
     string ResourceId,
-    string ActivityId);
+    string ActivityId,
+    int? WeekNum);

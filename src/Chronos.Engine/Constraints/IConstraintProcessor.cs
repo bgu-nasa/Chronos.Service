@@ -10,6 +10,7 @@ public interface IConstraintProcessor
         Guid activityId, 
         Guid organizationId,
         Guid? userId = null,
-        Guid? schedulingPeriodId = null
+        Guid? schedulingPeriodId = null,
+        int? weekNum = null
     );
 }

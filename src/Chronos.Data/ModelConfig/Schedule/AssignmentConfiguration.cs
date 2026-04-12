@@ -22,7 +22,10 @@ public class AssignmentConfiguration : IEntityTypeConfiguration<Assignment>
         builder.Property(a => a.ActivityId)
             .IsRequired();
 
-        builder.HasIndex(a => new { a.SlotId, a.ResourceId })
+        builder.Property(a => a.WeekNum)
+            .IsRequired(false);
+
+        builder.HasIndex(a => new { a.SlotId, a.ResourceId, a.WeekNum })
             .IsUnique();
     }
 }
