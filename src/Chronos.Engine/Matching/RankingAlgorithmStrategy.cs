@@ -531,7 +531,7 @@ public class RankingAlgorithmStrategy(
                 .Select(cw => cw.Weight)
                 .ToArray();
 
-            _logger.LogDebug(
+            _logger.LogInformation(
                 "Ordered {CandidateCount} valid streak candidates by preference weight for Activity {ActivityId}. Top weight: {TopWeight:F2}",
                 orderedCandidates.Count,
                 activity.Id,
@@ -682,7 +682,7 @@ public class RankingAlgorithmStrategy(
             .GroupBy(s => NormalizeWeekday(s.Weekday))
             .ToDictionary(g => g.Key, g => g.Select(s => s.Id).ToList(), StringComparer.OrdinalIgnoreCase);
 
-        _logger.LogDebug(
+        _logger.LogInformation(
             "BuildAllowedSlotIdsByWeek: Found {WeekdayCount} distinct weekdays from {SlotCount} slots",
             slotsByWeekday.Count,
             slots.Count
@@ -714,7 +714,7 @@ public class RankingAlgorithmStrategy(
             cursor = cursor.AddDays(1);
         }
 
-        _logger.LogDebug(
+        _logger.LogInformation(
             "BuildAllowedSlotIdsByWeek: Result has {WeekCount} weeks with {TotalSlots} unique slots",
             result.Count,
             result.Values.Sum(s => s.Count)
