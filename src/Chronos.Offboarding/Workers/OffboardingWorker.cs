@@ -1,21 +1,21 @@
 using Chronos.Data.Repositories.Management;
+using Chronos.Offboarding.Removers;
 using Cronos;
+using Microsoft.Extensions.Options;
 
 namespace Chronos.Offboarding.Workers;
 
 public class OffboardingWorker(
     IServiceScopeFactory scopeFactory,
-    IConfiguration configuration,
+    IOptions<OffboardingConfiguration> options,
     ILogger<OffboardingWorker> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var cronSchedule = configuration["Offboarding:CronSchedule"]
-                           ?? throw new InvalidOperationException("Offboarding:CronSchedule is not configured.");
-        var retentionDays = configuration.GetValue<int>("Offboarding:RetentionDays");
-        var cronExpression = CronExpression.Parse(cronSchedule);
+        var config = options.Value;
+        var cronExpression = CronExpression.Parse(config.CronSchedule);
 
-        logger.LogInformation("OffboardingWorker started with schedule: {CronSchedule}", cronSchedule);
+        logger.LogInformation("OffboardingWorker started with schedule: {CronSchedule}", config.CronSchedule);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -30,7 +30,7 @@ public class OffboardingWorker(
             logger.LogInformation("Next offboarding run scheduled at {NextRun} (in {Delay})", nextOccurrence.Value, delay);
             await Task.Delay(delay, stoppingToken);
 
-            await RunOffboardingAsync(retentionDays, stoppingToken);
+            await RunOffboardingAsync(config.RetentionDays, stoppingToken);
         }
     }
 
@@ -41,6 +41,8 @@ public class OffboardingWorker(
         using var scope = scopeFactory.CreateScope();
         var organizationRepository = scope.ServiceProvider.GetRequiredService<IOrganizationRepository>();
         var departmentRepository = scope.ServiceProvider.GetRequiredService<IDepartmentRepository>();
+        var organizationRemover = scope.ServiceProvider.GetRequiredService<OrganizationRemover>();
+        var departmentRemover = scope.ServiceProvider.GetRequiredService<DepartmentRemover>();
 
         var cutoffDate = DateTime.UtcNow.AddDays(-retentionDays);
 
@@ -58,9 +60,9 @@ public class OffboardingWorker(
             {
                 try
                 {
-                    // TODO: Call OrganizationRemover.RemoveAsync(organization.Id, ct) after merging removers branch
-                    logger.LogInformation("Removed organization {OrganizationId} ({OrganizationName})",
-                        organization.Id, organization.Name);
+                    var deleted = await organizationRemover.RemoveAsync(organization.Id, ct);
+                    logger.LogInformation("Removed organization {OrganizationId} ({OrganizationName}). Rows deleted: {Deleted}",
+                        organization.Id, organization.Name, deleted);
                 }
                 catch (Exception ex)
                 {
@@ -81,9 +83,9 @@ public class OffboardingWorker(
             {
                 try
                 {
-                    // TODO: Call DepartmentRemover.RemoveAsync(department.Id, ct) after merging removers branch
-                    logger.LogInformation("Removed department {DepartmentId} ({DepartmentName})",
-                        department.Id, department.Name);
+                    var deleted = await departmentRemover.RemoveAsync(department.Id, ct);
+                    logger.LogInformation("Removed department {DepartmentId} ({DepartmentName}). Rows deleted: {Deleted}",
+                        department.Id, department.Name, deleted);
                 }
                 catch (Exception ex)
                 {
