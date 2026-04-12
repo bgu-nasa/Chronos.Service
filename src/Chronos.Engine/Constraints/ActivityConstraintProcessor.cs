@@ -24,7 +24,8 @@ public class ActivityConstraintProcessor(
         Guid activityId,
         Guid organizationId,
         Guid? userId = null,
-        Guid? schedulingPeriodId = null
+        Guid? schedulingPeriodId = null,
+        int? weekNum = null
     )
     {
         _logger.LogInformation(
@@ -53,7 +54,8 @@ public class ActivityConstraintProcessor(
                 constraint,
                 organizationId,
                 activityId,
-                schedulingPeriodId
+                schedulingPeriodId,
+                weekNum
             );
 
             excludedSlots.UnionWith(excludedByThisConstraint);
@@ -96,6 +98,7 @@ public class ActivityConstraintProcessor(
                     Id = userConstraint.Id,
                     OrganizationId = userConstraint.OrganizationId,
                     ActivityId = activityId, // Use activityId for context
+                    WeekNum = userConstraint.WeekNum,
                     Key = userConstraint.Key,
                     Value = userConstraint.Value
                 };
@@ -104,7 +107,8 @@ public class ActivityConstraintProcessor(
                     activityConstraint,
                     organizationId,
                     activityId,
-                    schedulingPeriodId
+                    schedulingPeriodId,
+                    weekNum
                 );
 
                 excludedSlots.UnionWith(excludedByThisConstraint);
@@ -124,9 +128,15 @@ public class ActivityConstraintProcessor(
         ActivityConstraint constraint,
         Guid organizationId,
         Guid activityId,
-        Guid? schedulingPeriodId = null
+        Guid? schedulingPeriodId = null,
+        int? weekNum = null
     )
     {
+        if (constraint.WeekNum.HasValue && weekNum.HasValue && constraint.WeekNum.Value != weekNum.Value)
+        {
+            return new HashSet<Guid>();
+        }
+
         // Try to find a handler for this constraint type
         var handler = _handlers.FirstOrDefault(h => h.ConstraintKey == constraint.Key);
 
