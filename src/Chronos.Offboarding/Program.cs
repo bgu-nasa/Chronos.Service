@@ -3,10 +3,17 @@ using Chronos.Data.Repositories.Auth;
 using Chronos.Data.Repositories.Management;
 using Chronos.Data.Repositories.Resources;
 using Chronos.Data.Repositories.Schedule;
+using Chronos.Offboarding;
+using Chronos.Offboarding.Removers;
+using Chronos.Offboarding.Workers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 var builder = Host.CreateApplicationBuilder(args);
+
+// Configuration
+builder.Services.Configure<OffboardingConfiguration>(
+    builder.Configuration.GetSection(OffboardingConfiguration.Offboarding));
 
 // Required by AppDbContext — null in non-web context, bypasses tenant query filters
 builder.Services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
@@ -45,6 +52,13 @@ builder.Services.AddScoped<ISlotRepository, SlotRepository>();
 builder.Services.AddScoped<IUserConstraintRepository, UserConstraintRepository>();
 builder.Services.AddScoped<IUserPreferenceRepository, UserPreferenceRepository>();
 builder.Services.AddScoped<IOrganizationPolicyRepository, OrganizationPolicyRepository>();
+
+// Removers
+builder.Services.AddScoped<OrganizationRemover>();
+builder.Services.AddScoped<DepartmentRemover>();
+
+// Worker
+builder.Services.AddHostedService<OffboardingWorker>();
 
 var host = builder.Build();
 host.Run();
