@@ -7,6 +7,7 @@ using Chronos.Domain.Schedule.Messages;
 using Chronos.Engine.Constraints;
 using Chronos.Engine.Constraints.Evaluation;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
 
 namespace Chronos.Engine.Matching;
 
@@ -26,6 +27,8 @@ public class RankingAlgorithmStrategy(
     ILogger<RankingAlgorithmStrategy> logger
 ) : IMatchingStrategy
 {
+    private sealed record SchedulingWeek(int WeekNum);
+
     private readonly IActivityRepository _activityRepository = activityRepository;
     private readonly ISlotRepository _slotRepository = slotRepository;
     private readonly IResourceRepository _resourceRepository = resourceRepository;
@@ -93,6 +96,24 @@ public class RankingAlgorithmStrategy(
                 periodRequest.SchedulingPeriodId
             );
             var resources = await _resourceRepository.GetAllAsync();
+            var schedulingPeriod = await _dbContext.SchedulingPeriods
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(p => p.Id == periodRequest.SchedulingPeriodId, cancellationToken);
+
+            if (schedulingPeriod == null)
+            {
+                return new SchedulingResult(
+                    periodRequest.SchedulingPeriodId,
+                    false,
+                    0,
+                    0,
+                    new List<Guid>(),
+                    $"Scheduling period {periodRequest.SchedulingPeriodId} was not found"
+                );
+            }
+
+            var weeks = GetSchedulingWeeks(schedulingPeriod.FromDate, schedulingPeriod.ToDate);
+            var allowedSlotsByWeek = BuildAllowedSlotIdsByWeek(slots, schedulingPeriod.FromDate, schedulingPeriod.ToDate);
 
             _logger.LogInformation(
                 "Loaded {SlotCount} slots and {ResourceCount} resources",
@@ -111,13 +132,39 @@ public class RankingAlgorithmStrategy(
                 rankedPairs.Count
             );
 
-            // Step 5: Process activities and match using ranking algorithm
-            var result = await ProcessActivitiesWithRankingAsync(
-                activities,
-                rankedPairs,
-                periodRequest.OrganizationId,
+            var createdAssignments = 0;
+            var unscheduledActivities = new HashSet<Guid>();
+            var previousSelections = new Dictionary<Guid, SlotResourcePair>();
+
+            foreach (var week in weeks)
+            {
+                var weekResult = await ProcessActivitiesWithRankingAsync(
+                    activities,
+                    rankedPairs,
+                    periodRequest.OrganizationId,
+                    periodRequest.SchedulingPeriodId,
+                    week.WeekNum,
+                    allowedSlotsByWeek,
+                    previousSelections,
+                    cancellationToken
+                );
+
+                createdAssignments += weekResult.AssignmentsCreated;
+                foreach (var activityId in weekResult.UnscheduledActivityIds)
+                {
+                    unscheduledActivities.Add(activityId);
+                }
+            }
+
+            var result = new SchedulingResult(
                 periodRequest.SchedulingPeriodId,
-                cancellationToken
+                true,
+                createdAssignments,
+                0,
+                unscheduledActivities.ToList(),
+                unscheduledActivities.Any()
+                    ? $"{unscheduledActivities.Count} activities could not be scheduled"
+                    : null
             );
 
             _logger.LogInformation(
@@ -226,17 +273,51 @@ public class RankingAlgorithmStrategy(
         List<SlotResourcePair> rankedPairs,
         Guid organizationId,
         Guid schedulingPeriodId,
+        int weekNum,
+        Dictionary<int, HashSet<Guid>> allowedSlotsByWeek,
+        Dictionary<Guid, SlotResourcePair> previousSelections,
         CancellationToken cancellationToken
     )
     {
         var createdAssignments = 0;
         var unscheduledActivities = new List<Guid>();
         var occupiedPairs = new HashSet<(Guid SlotId, Guid ResourceId)>();
+        var weekPairs = rankedPairs;
+
+        // Filter pairs to only slots allowed in this week, but fall back to all pairs if filtering produces empty result
+        if (allowedSlotsByWeek.TryGetValue(weekNum, out var allowedSlotIds) && allowedSlotIds.Count > 0)
+        {
+            var filteredPairs = rankedPairs.Where(p => allowedSlotIds.Contains(p.SlotId)).ToList();
+            
+            // Only use filtered pairs if we got results; otherwise use all pairs (fallback for edge cases)
+            if (filteredPairs.Count > 0)
+            {
+                weekPairs = filteredPairs;
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "Filtering by allowed slots for week {WeekNum} produced no pairs; using all {TotalPairs} pairs as fallback",
+                    weekNum,
+                    rankedPairs.Count
+                );
+            }
+        }
+        else if (allowedSlotsByWeek.Count > 0)
+        {
+            _logger.LogWarning(
+                "Week {WeekNum} not found in allowedSlotsByWeek (has {WeekCount} weeks); using all {TotalPairs} pairs as fallback",
+                weekNum,
+                allowedSlotsByWeek.Count,
+                rankedPairs.Count
+            );
+        }
 
         _logger.LogInformation(
-            "Processing {ActivityCount} activities with {PairCount} ranked pairs",
+            "Processing {ActivityCount} activities with {PairCount} ranked pairs for week {WeekNum}",
             activities.Count,
-            rankedPairs.Count
+            weekPairs.Count,
+            weekNum
         );
 
         var activityIndex = 0;
@@ -266,7 +347,8 @@ public class RankingAlgorithmStrategy(
                 activity.Id,
                 organizationId,
                 activity.AssignedUserId != Guid.Empty ? activity.AssignedUserId : null,
-                schedulingPeriodId
+                schedulingPeriodId,
+                weekNum
             );
 
             var requiredDuration = GetRequiredDuration(activity);
@@ -281,7 +363,18 @@ public class RankingAlgorithmStrategy(
                 continue;
             }
 
-            var slotsByResource = rankedPairs
+            if (!weekPairs.Any())
+            {
+                _logger.LogWarning(
+                    "No ranked pairs available for Activity {ActivityId} in week {WeekNum}",
+                    activity.Id,
+                    weekNum
+                );
+                unscheduledActivities.Add(activity.Id);
+                continue;
+            }
+
+            var slotsByResource = weekPairs
                 .GroupBy(p => p.ResourceId)
                 .ToDictionary(
                     g => g.Key,
@@ -293,14 +386,14 @@ public class RankingAlgorithmStrategy(
                         .ToList()
                 );
 
-            var pairByKey = rankedPairs
+            var pairByKey = weekPairs
                 .GroupBy(p => (p.SlotId, p.ResourceId))
                 .ToDictionary(g => g.Key, g => g.OrderBy(p => p.Rank).First());
 
             var streakCandidates = new List<(SlotResourcePair Anchor, List<SlotResourcePair> Streak)>();
             var dedupe = new HashSet<string>();
 
-            foreach (var pair in rankedPairs.OrderBy(p => p.Rank))
+            foreach (var pair in weekPairs.OrderBy(p => p.Rank))
             {
                 if (excludedSlots.Contains(pair.SlotId))
                 {
@@ -315,7 +408,8 @@ public class RankingAlgorithmStrategy(
                 var canAssignStart = await _constraintEvaluator.CanAssignAsync(
                     activity,
                     pair.Slot,
-                    pair.Resource
+                    pair.Resource,
+                    weekNum
                 );
                 if (!canAssignStart)
                 {
@@ -329,7 +423,8 @@ public class RankingAlgorithmStrategy(
                     slotsByResource,
                     pairByKey,
                     excludedSlots,
-                    occupiedPairs
+                    occupiedPairs,
+                    weekNum
                 );
 
                 if (streak == null || streak.Count == 0)
@@ -365,6 +460,44 @@ public class RankingAlgorithmStrategy(
                 activity.Id
             );
 
+            if (previousSelections.TryGetValue(activity.Id, out var previousSelection))
+            {
+                var previousCandidate = streakCandidates.FirstOrDefault(candidate =>
+                    candidate.Anchor.SlotId == previousSelection.SlotId &&
+                    candidate.Anchor.ResourceId == previousSelection.ResourceId);
+
+                if (previousCandidate.Anchor != null)
+                {
+                    _logger.LogInformation(
+                        "Reusing previous slot/resource selection for Activity {ActivityId} in week {WeekNum}: Slot {SlotId}, Resource {ResourceId}",
+                        activity.Id,
+                        weekNum,
+                        previousSelection.SlotId,
+                        previousSelection.ResourceId
+                    );
+
+                    foreach (var pair in previousCandidate.Streak.OrderBy(s => s.Slot.FromTime))
+                    {
+                        var assignment = new Assignment
+                        {
+                            Id = Guid.NewGuid(),
+                            OrganizationId = organizationId,
+                            SlotId = pair.SlotId,
+                            ResourceId = pair.ResourceId,
+                            ActivityId = activity.Id,
+                            WeekNum = weekNum,
+                        };
+
+                        await _assignmentRepository.AddAsync(assignment);
+                        occupiedPairs.Add((pair.SlotId, pair.ResourceId));
+                        createdAssignments++;
+                    }
+
+                    previousSelections[activity.Id] = previousCandidate.Anchor;
+                    continue;
+                }
+            }
+
             var candidateWeights = new List<((SlotResourcePair Anchor, List<SlotResourcePair> Streak) Candidate, double Weight)>();
 
             foreach (var candidate in streakCandidates)
@@ -375,6 +508,13 @@ public class RankingAlgorithmStrategy(
                     organizationId,
                     schedulingPeriodId
                 );
+
+                if (previousSelections.TryGetValue(activity.Id, out var previousSelectionForWeight) &&
+                    candidate.Anchor.SlotId == previousSelectionForWeight.SlotId &&
+                    candidate.Anchor.ResourceId == previousSelectionForWeight.ResourceId)
+                {
+                    weight *= 1000;
+                }
 
                 candidateWeights.Add((candidate, weight));
             }
@@ -391,7 +531,7 @@ public class RankingAlgorithmStrategy(
                 .Select(cw => cw.Weight)
                 .ToArray();
 
-            _logger.LogDebug(
+            _logger.LogInformation(
                 "Ordered {CandidateCount} valid streak candidates by preference weight for Activity {ActivityId}. Top weight: {TopWeight:F2}",
                 orderedCandidates.Count,
                 activity.Id,
@@ -479,12 +619,15 @@ public class RankingAlgorithmStrategy(
                     SlotId = pair.SlotId,
                     ResourceId = pair.ResourceId,
                     ActivityId = activity.Id,
+                    WeekNum = weekNum,
                 };
 
                 await _assignmentRepository.AddAsync(assignment);
                 occupiedPairs.Add((pair.SlotId, pair.ResourceId));
                 createdAssignments++;
             }
+
+            previousSelections[activity.Id] = selected.Anchor;
 
             if (createdAssignments % 10 == 0)
             {
@@ -507,6 +650,88 @@ public class RankingAlgorithmStrategy(
                 ? $"{unscheduledActivities.Count} activities could not be scheduled"
                 : null
         );
+    }
+
+    private static List<SchedulingWeek> GetSchedulingWeeks(DateTime fromDate, DateTime toDate)
+    {
+        var weeks = new List<SchedulingWeek>();
+        var seen = new HashSet<int>();
+
+        var cursor = fromDate.Date;
+        var end = toDate.Date;
+        while (cursor <= end)
+        {
+            var weekNum = ISOWeek.GetWeekOfYear(cursor);
+            if (seen.Add(weekNum))
+            {
+                weeks.Add(new SchedulingWeek(weekNum));
+            }
+
+            cursor = cursor.AddDays(1);
+        }
+
+        return weeks;
+    }
+
+    private Dictionary<int, HashSet<Guid>> BuildAllowedSlotIdsByWeek(
+        List<Slot> slots,
+        DateTime fromDate,
+        DateTime toDate)
+    {
+        var slotsByWeekday = slots
+            .GroupBy(s => NormalizeWeekday(s.Weekday))
+            .ToDictionary(g => g.Key, g => g.Select(s => s.Id).ToList(), StringComparer.OrdinalIgnoreCase);
+
+        _logger.LogInformation(
+            "BuildAllowedSlotIdsByWeek: Found {WeekdayCount} distinct weekdays from {SlotCount} slots",
+            slotsByWeekday.Count,
+            slots.Count
+        );
+
+        var result = new Dictionary<int, HashSet<Guid>>();
+        var cursor = fromDate.Date;
+        var end = toDate.Date;
+
+        while (cursor <= end)
+        {
+            var weekNum = ISOWeek.GetWeekOfYear(cursor);
+            var weekday = cursor.DayOfWeek.ToString();
+
+            if (slotsByWeekday.TryGetValue(weekday, out var slotIds))
+            {
+                if (!result.TryGetValue(weekNum, out var set))
+                {
+                    set = new HashSet<Guid>();
+                    result[weekNum] = set;
+                }
+
+                foreach (var slotId in slotIds)
+                {
+                    set.Add(slotId);
+                }
+            }
+
+            cursor = cursor.AddDays(1);
+        }
+
+        _logger.LogInformation(
+            "BuildAllowedSlotIdsByWeek: Result has {WeekCount} weeks with {TotalSlots} unique slots",
+            result.Count,
+            result.Values.Sum(s => s.Count)
+        );
+
+        return result;
+    }
+
+    private static string NormalizeWeekday(string weekday)
+    {
+        if (string.IsNullOrWhiteSpace(weekday))
+        {
+            return string.Empty;
+        }
+
+        var trimmed = weekday.Trim();
+        return char.ToUpperInvariant(trimmed[0]) + (trimmed.Length > 1 ? trimmed.Substring(1).ToLowerInvariant() : string.Empty);
     }
 
     private static TimeSpan GetRequiredDuration(Activity activity)
@@ -536,7 +761,8 @@ public class RankingAlgorithmStrategy(
         Dictionary<Guid, List<Slot>> slotsByResource,
         Dictionary<(Guid SlotId, Guid ResourceId), SlotResourcePair> pairByKey,
         HashSet<Guid> excludedSlots,
-        HashSet<(Guid SlotId, Guid ResourceId)> occupiedPairs
+        HashSet<(Guid SlotId, Guid ResourceId)> occupiedPairs,
+        int weekNum
     )
     {
         if (!slotsByResource.TryGetValue(startPair.ResourceId, out var resourceSlots))
@@ -576,7 +802,8 @@ public class RankingAlgorithmStrategy(
             var canAssign = await _constraintEvaluator.CanAssignAsync(
                 activity,
                 nextPair.Slot,
-                nextPair.Resource
+                nextPair.Resource,
+                weekNum
             );
             if (!canAssign)
             {
