@@ -12,6 +12,7 @@ using NSubstitute.ReturnsExtensions;
 namespace Chronos.Tests.MainApi.Services;
 
 [TestFixture]
+[Category("Unit")]
 public class RoleServiceTests
 {
     private IRoleAssignmentRepository _roleAssignmentRepository = null!;
