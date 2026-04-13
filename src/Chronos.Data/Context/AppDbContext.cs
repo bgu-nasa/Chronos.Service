@@ -40,6 +40,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IHttpContextAc
     public DbSet<SchedulingPeriod> SchedulingPeriods => Set<SchedulingPeriod>();
     public DbSet<Slot> Slots => Set<Slot>();
     public DbSet<Assignment> Assignments => Set<Assignment>();
+    public DbSet<Appeal> Appeals => Set<Appeal>();
     
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -72,6 +73,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IHttpContextAc
             modelBuilder.Entity<Slot>().HasQueryFilter(s => s.OrganizationId.ToString().ToLower() == _currentOrganizationId);
             modelBuilder.Entity<Assignment>().HasQueryFilter(a => a.OrganizationId.ToString().ToLower() == _currentOrganizationId);
             modelBuilder.Entity<ActivityConstraint>().HasQueryFilter(ac => ac.OrganizationId.ToString().ToLower() == _currentOrganizationId);
+            modelBuilder.Entity<Appeal>().HasQueryFilter(a => a.OrganizationId.ToString().ToLower() == _currentOrganizationId);
 
         }
 
