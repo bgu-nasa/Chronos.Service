@@ -16,11 +16,13 @@ public class ScheduleController(
     ISchedulingPeriodService schedulingPeriodService,
     ISlotService slotService,
     IAssignmentService assignmentService,
+    IAppealService appealService,
     IMessagePublisher messagePublisher)
     : ControllerBase
 {
     private const string ViewerPolicy = "OrgRole:Viewer";
     private const string ResourceManagerPolicy = "OrgRole:ResourceManager";
+    private const string OperatorPolicy = "OrgRole:Operator";
 
 
     [Authorize(Policy = ResourceManagerPolicy)]
@@ -344,5 +346,84 @@ public class ScheduleController(
         );
 
         return Accepted(new { message = "Batch scheduling request has been submitted successfully" });
+    }
+
+
+    [Authorize(Policy = OperatorPolicy)]
+    [HttpPost("appeals")]
+    public async Task<IActionResult> CreateAppeal([FromBody] CreateAppealRequest request)
+    {
+        logger.LogInformation("Create appeal endpoint was called");
+        var organizationId = ControllerUtils.GetOrganizationIdAndFailIfMissing(HttpContext, logger);
+
+        var appealId = await appealService.CreateAppealAsync(
+            organizationId,
+            request.AssignmentId,
+            request.Title,
+            request.Description);
+
+        var appeal = await appealService.GetAppealAsync(organizationId, appealId);
+
+        return CreatedAtAction(nameof(GetAppeal), new { appealId }, appeal.ToAppealResponse());
+    }
+
+    [Authorize(Policy = ViewerPolicy)]
+    [HttpGet("appeals/{appealId}")]
+    public async Task<IActionResult> GetAppeal(Guid appealId)
+    {
+        logger.LogInformation("Get appeal endpoint was called for {AppealId}", appealId);
+        var organizationId = ControllerUtils.GetOrganizationIdAndFailIfMissing(HttpContext, logger);
+
+        var appeal = await appealService.GetAppealAsync(organizationId, appealId);
+
+        return Ok(appeal.ToAppealResponse());
+    }
+
+    [Authorize(Policy = ViewerPolicy)]
+    [HttpGet("appeals")]
+    public async Task<IActionResult> GetAllAppeals()
+    {
+        logger.LogInformation("Get all appeals endpoint was called");
+        var organizationId = ControllerUtils.GetOrganizationIdAndFailIfMissing(HttpContext, logger);
+
+        var appeals = await appealService.GetAllAppealsAsync(organizationId);
+
+        return Ok(appeals.Select(a => a.ToAppealResponse()).ToList());
+    }
+
+    [Authorize(Policy = ViewerPolicy)]
+    [HttpGet("assignments/{assignmentId}/appeals")]
+    public async Task<IActionResult> GetAppealsByAssignment(Guid assignmentId)
+    {
+        logger.LogInformation("Get appeals by assignment endpoint was called for {AssignmentId}", assignmentId);
+        var organizationId = ControllerUtils.GetOrganizationIdAndFailIfMissing(HttpContext, logger);
+
+        var appeals = await appealService.GetAppealsByAssignmentIdAsync(organizationId, assignmentId);
+
+        return Ok(appeals.Select(a => a.ToAppealResponse()).ToList());
+    }
+
+    [Authorize(Policy = ResourceManagerPolicy)]
+    [HttpPatch("appeals/{appealId}")]
+    public async Task<IActionResult> UpdateAppeal(Guid appealId, [FromBody] UpdateAppealRequest request)
+    {
+        logger.LogInformation("Update appeal endpoint was called for {AppealId}", appealId);
+        var organizationId = ControllerUtils.GetOrganizationIdAndFailIfMissing(HttpContext, logger);
+
+        await appealService.UpdateAppealAsync(organizationId, appealId, request.Title, request.Description);
+
+        return NoContent();
+    }
+
+    [Authorize(Policy = ResourceManagerPolicy)]
+    [HttpDelete("appeals/{appealId}")]
+    public async Task<IActionResult> DeleteAppeal(Guid appealId)
+    {
+        logger.LogInformation("Delete appeal endpoint was called for {AppealId}", appealId);
+        var organizationId = ControllerUtils.GetOrganizationIdAndFailIfMissing(HttpContext, logger);
+
+        await appealService.DeleteAppealAsync(organizationId, appealId);
+
+        return NoContent();
     }
 }
