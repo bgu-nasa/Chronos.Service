@@ -92,6 +92,26 @@ public class AppealService(
         return appeals;
     }
 
+    public async Task<List<Appeal>> GetAppealsByUserIdAsync(Guid organizationId, Guid userId)
+    {
+        logger.LogInformation(
+            "Retrieving appeals by user. OrganizationId: {OrganizationId}, UserId: {UserId}",
+            organizationId, userId);
+
+        await validationService.ValidateOrganizationAsync(organizationId);
+
+        var assignments = await assignmentService.GetAllAssignmentsAsync(organizationId, userId: userId);
+        var assignmentIds = assignments.Select(a => a.Id).ToList();
+
+        var appeals = await appealRepository.GetByAssignmentIdsAsync(assignmentIds);
+
+        logger.LogInformation(
+            "Retrieved {Count} appeals for user. OrganizationId: {OrganizationId}, UserId: {UserId}",
+            appeals.Count, organizationId, userId);
+
+        return appeals;
+    }
+
     public async Task UpdateAppealAsync(Guid organizationId, Guid appealId, string title, string description)
     {
         logger.LogInformation(

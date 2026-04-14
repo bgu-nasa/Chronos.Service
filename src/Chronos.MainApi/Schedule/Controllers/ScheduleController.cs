@@ -403,6 +403,18 @@ public class ScheduleController(
         return Ok(appeals.Select(a => a.ToAppealResponse()).ToList());
     }
 
+    [Authorize(Policy = ViewerPolicy)]
+    [HttpGet("users/{userId}/appeals")]
+    public async Task<IActionResult> GetAppealsByUser(Guid userId)
+    {
+        logger.LogInformation("Get appeals by user endpoint was called for {UserId}", userId);
+        var organizationId = ControllerUtils.GetOrganizationIdAndFailIfMissing(HttpContext, logger);
+
+        var appeals = await appealService.GetAppealsByUserIdAsync(organizationId, userId);
+
+        return Ok(appeals.Select(a => a.ToAppealResponse()).ToList());
+    }
+
     [Authorize(Policy = ResourceManagerPolicy)]
     [HttpPatch("appeals/{appealId}")]
     public async Task<IActionResult> UpdateAppeal(Guid appealId, [FromBody] UpdateAppealRequest request)
