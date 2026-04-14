@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Chronos.Tests.System.Infrastructure;
 
@@ -13,6 +14,7 @@ public static class HttpClientExtensions
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
+        Converters = { new JsonStringEnumConverter() },
     };
 
     public static void SetOrgHeader(this HttpClient client, Guid organizationId)
