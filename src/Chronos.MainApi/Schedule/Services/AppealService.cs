@@ -20,6 +20,10 @@ public class AppealService(
         await validationService.ValidateOrganizationAsync(organizationId);
         await ValidateAssignmentExistsAsync(organizationId, assignmentId);
 
+        var existing = await appealRepository.GetByAssignmentIdAsync(assignmentId);
+        if (existing.Count > 0)
+            throw new BadRequestException($"An appeal already exists for assignment {assignmentId}.");
+
         var appeal = new Appeal
         {
             Id = Guid.NewGuid(),
