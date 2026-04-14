@@ -8,6 +8,7 @@ public interface IAppealService
     Task<Appeal> GetAppealAsync(Guid organizationId, Guid appealId);
     Task<List<Appeal>> GetAllAppealsAsync(Guid organizationId);
     Task<List<Appeal>> GetAppealsByAssignmentIdAsync(Guid organizationId, Guid assignmentId);
+    Task<List<Appeal>> GetAppealsByUserIdAsync(Guid organizationId, Guid userId);
     Task UpdateAppealAsync(Guid organizationId, Guid appealId, string title, string description);
     Task DeleteAppealAsync(Guid organizationId, Guid appealId);
 }

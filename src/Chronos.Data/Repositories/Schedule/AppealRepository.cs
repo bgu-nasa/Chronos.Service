@@ -24,6 +24,13 @@ public class AppealRepository(AppDbContext context) : IAppealRepository
             .ToListAsync();
     }
 
+    public async Task<List<Appeal>> GetByAssignmentIdsAsync(List<Guid> assignmentIds)
+    {
+        return await context.Appeals
+            .Where(a => assignmentIds.Contains(a.AssignmentId))
+            .ToListAsync();
+    }
+
     public async Task AddAsync(Appeal appeal)
     {
         await context.Appeals.AddAsync(appeal);

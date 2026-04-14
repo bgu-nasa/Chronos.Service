@@ -20,6 +20,10 @@ public class AppealService(
         await validationService.ValidateOrganizationAsync(organizationId);
         await ValidateAssignmentExistsAsync(organizationId, assignmentId);
 
+        var existing = await appealRepository.GetByAssignmentIdAsync(assignmentId);
+        if (existing.Count > 0)
+            throw new BadRequestException($"An appeal already exists for assignment {assignmentId}.");
+
         var appeal = new Appeal
         {
             Id = Guid.NewGuid(),
@@ -84,6 +88,26 @@ public class AppealService(
         logger.LogInformation(
             "Retrieved {Count} appeals for assignment. OrganizationId: {OrganizationId}, AssignmentId: {AssignmentId}",
             appeals.Count, organizationId, assignmentId);
+
+        return appeals;
+    }
+
+    public async Task<List<Appeal>> GetAppealsByUserIdAsync(Guid organizationId, Guid userId)
+    {
+        logger.LogInformation(
+            "Retrieving appeals by user. OrganizationId: {OrganizationId}, UserId: {UserId}",
+            organizationId, userId);
+
+        await validationService.ValidateOrganizationAsync(organizationId);
+
+        var assignments = await assignmentService.GetAllAssignmentsAsync(organizationId, userId: userId);
+        var assignmentIds = assignments.Select(a => a.Id).ToList();
+
+        var appeals = await appealRepository.GetByAssignmentIdsAsync(assignmentIds);
+
+        logger.LogInformation(
+            "Retrieved {Count} appeals for user. OrganizationId: {OrganizationId}, UserId: {UserId}",
+            appeals.Count, organizationId, userId);
 
         return appeals;
     }
