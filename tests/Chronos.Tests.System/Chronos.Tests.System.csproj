@@ -1,4 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -11,6 +12,7 @@
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.0" />
     <PackageReference Include="FluentAssertions" Version="6.12.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.2" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
     <PackageReference Include="NSubstitute" Version="5.1.0" />
@@ -24,8 +26,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Chronos.Engine\Chronos.Engine.csproj" />
+    <ProjectReference Include="..\..\src\Chronos.MainApi\Chronos.MainApi.csproj" />
     <ProjectReference Include="..\..\src\Chronos.Domain\Chronos.Domain.csproj" />
     <ProjectReference Include="..\..\src\Chronos.Data\Chronos.Data.csproj" />
   </ItemGroup>
+
 </Project>

@@ -25,6 +25,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\..\src\Chronos.Shared\Chronos.Shared.csproj"/>
+        <ProjectReference Include="..\..\src\Chronos.Domain\Chronos.Domain.csproj"/>
     </ItemGroup>
 
 </Project>
