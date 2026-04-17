@@ -12,6 +12,7 @@ using NSubstitute.ReturnsExtensions;
 namespace Chronos.Tests.MainApi.Services;
 
 [TestFixture]
+[Category("Unit")]
 public class RoleServiceTests
 {
     private IRoleAssignmentRepository _roleAssignmentRepository = null!;
@@ -165,7 +166,7 @@ public class RoleServiceTests
         _organizationRepository.GetByIdAsync(organizationId)
             .Returns(new Organization { Id = organizationId, Deleted = false });
         _roleAssignmentRepository.GetAsync(organizationId, roleAssignmentId)
-            .Returns(Task.FromResult(systemAssignedRole)!);
+            .Returns(Task.FromResult<RoleAssignment?>(systemAssignedRole));
 
         var ex = Assert.ThrowsAsync<BadRequestException>(async () =>
             await _roleService.RemoveAssignmentAsync(organizationId, roleAssignmentId));
@@ -192,7 +193,7 @@ public class RoleServiceTests
         _organizationRepository.GetByIdAsync(organizationId)
             .Returns(new Organization { Id = organizationId, Deleted = false });
         _roleAssignmentRepository.GetAsync(organizationId, roleAssignmentId)
-            .Returns(Task.FromResult(userAssignedRole)!);
+            .Returns(Task.FromResult<RoleAssignment?>(userAssignedRole));
         _roleAssignmentRepository.DeleteAsync(organizationId, roleAssignmentId)
             .Returns(Task.CompletedTask);
 
@@ -237,7 +238,7 @@ public class RoleServiceTests
         _organizationRepository.GetByIdAsync(organizationId)
             .Returns(new Organization { Id = organizationId, Deleted = false });
         _roleAssignmentRepository.GetAsync(organizationId, roleAssignmentId)
-            .Returns(Task.FromResult(userAssignedRole)!);
+            .Returns(Task.FromResult<RoleAssignment?>(userAssignedRole));
         _roleAssignmentRepository.DeleteAsync(organizationId, roleAssignmentId)
             .Returns(Task.CompletedTask);
 
@@ -264,7 +265,7 @@ public class RoleServiceTests
         _organizationRepository.GetByIdAsync(organizationId)
             .Returns(new Organization { Id = organizationId, Deleted = false });
         _roleAssignmentRepository.GetAsync(organizationId, roleAssignmentId)
-            .Returns(Task.FromResult(roleAssignment)!);
+            .Returns(Task.FromResult<RoleAssignment?>(roleAssignment));
 
         var result = await _roleService.GetAssignmentAsync(organizationId, roleAssignmentId);
 

@@ -3,6 +3,7 @@
 namespace Chronos.Tests.MainApi.Auth;
 
 [TestFixture]
+[Category("Unit")]
 public class HackyInvitationServiceTests
 {
     [Test]

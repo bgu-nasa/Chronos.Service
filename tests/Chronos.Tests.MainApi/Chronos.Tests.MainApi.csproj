@@ -28,4 +28,8 @@
       <ProjectReference Include="..\..\src\Chronos.Shared\Chronos.Shared.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="Management\" />
+    </ItemGroup>
+
 </Project>
