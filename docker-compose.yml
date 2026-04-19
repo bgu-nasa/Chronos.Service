@@ -86,6 +86,22 @@ services:
     networks:
       - chronos-network
 
+  offboarding:
+    build:
+      context: .
+      dockerfile: src/Chronos.Offboarding/Dockerfile
+    container_name: chronos-offboarding
+    restart: unless-stopped
+    env_file:
+      - .local.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+    networks:
+      - chronos-network
+
 volumes:
   postgres_data:
 

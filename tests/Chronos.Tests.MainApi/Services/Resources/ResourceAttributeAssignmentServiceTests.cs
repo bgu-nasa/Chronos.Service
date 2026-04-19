@@ -9,6 +9,7 @@ using NSubstitute;
 namespace Chronos.Tests.MainApi.Services.Resources;
 
 [TestFixture]
+[Category("Unit")]
 public class ResourceAttributeAssignmentServiceTests
 {
     private IResourceAttributeAssignmentRepository _resourceAttributeAssignmentRepository = null!;

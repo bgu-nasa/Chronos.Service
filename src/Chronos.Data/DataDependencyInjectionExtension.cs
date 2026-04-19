@@ -34,5 +34,6 @@ public static class DataDependencyInjectionExtension
         services.AddScoped<IOrganizationPolicyRepository, OrganizationPolicyRepository>();
         services.AddScoped<IUserPreferenceRepository, UserPreferenceRepository>();
         services.AddScoped<IUserConstraintRepository, UserConstraintRepository>();
+        services.AddScoped<IAppealRepository, AppealRepository>();
     }
 }
