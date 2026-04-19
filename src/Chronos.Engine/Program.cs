@@ -9,6 +9,7 @@ using Chronos.Engine.Constraints.Evaluation;
 using Chronos.Engine.Constraints.Evaluation.Validators;
 using Chronos.Engine.Matching;
 using Chronos.Engine.Messaging;
+using Chronos.Shared.Logging;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
@@ -24,6 +25,11 @@ builder
         reloadOnChange: true
     )
     .AddEnvironmentVariables();
+
+// Configure Discord Logger
+builder.Services.Configure<DiscordLoggerConfiguration>(
+    builder.Configuration.GetSection("DiscordLogger"));
+builder.Logging.AddDiscordLogger("ChronosEngine");
 
 // Configuration
 builder.Services.Configure<RabbitMqOptions>(
