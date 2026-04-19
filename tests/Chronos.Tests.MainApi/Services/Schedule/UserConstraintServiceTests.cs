@@ -11,6 +11,7 @@ using NSubstitute.ReturnsExtensions;
 namespace Chronos.Tests.MainApi.Services.Schedule;
 
 [TestFixture]
+[Category("Unit")]
 public class UserConstraintServiceTests
 {
     private IUserConstraintRepository _userConstraintRepository = null!;

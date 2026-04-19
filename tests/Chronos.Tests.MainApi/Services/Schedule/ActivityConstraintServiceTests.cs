@@ -13,6 +13,7 @@ using NSubstitute.ReturnsExtensions;
 namespace Chronos.Tests.MainApi.Services.Schedule;
 
 [TestFixture]
+[Category("Unit")]
 public class ActivityConstraintServiceTests
 {
     private IActivityConstraintRepository _activityConstraintRepository = null!;
