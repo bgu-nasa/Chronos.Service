@@ -6,10 +6,16 @@ using Chronos.Data.Repositories.Schedule;
 using Chronos.Offboarding;
 using Chronos.Offboarding.Removers;
 using Chronos.Offboarding.Workers;
+using Chronos.Shared.Logging;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 var builder = Host.CreateApplicationBuilder(args);
+
+// Configure Discord Logger
+builder.Services.Configure<DiscordLoggerConfiguration>(
+    builder.Configuration.GetSection("DiscordLogger"));
+builder.Logging.AddDiscordLogger("ChronosOffboarding");
 
 // Configuration
 builder.Services.Configure<OffboardingConfiguration>(
