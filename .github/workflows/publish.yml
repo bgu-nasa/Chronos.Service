@@ -23,6 +23,10 @@ jobs:
             dockerfile: src/Chronos.MainApi/Dockerfile
           - image: chronos-migrations
             dockerfile: src/Chronos.Data/migrations.Dockerfile
+          - image: chronos-engine
+            dockerfile: src/Chronos.Engine/Dockerfile
+          - image: chronos-offboarding
+            dockerfile: src/Chronos.Offboarding/Dockerfile
 
     steps:
       - name: Checkout code
