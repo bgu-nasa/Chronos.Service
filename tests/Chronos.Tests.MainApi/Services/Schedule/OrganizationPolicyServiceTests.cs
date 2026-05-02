@@ -10,6 +10,7 @@ using NSubstitute.ReturnsExtensions;
 namespace Chronos.Tests.MainApi.Services.Schedule;
 
 [TestFixture]
+[Category("Unit")]
 public class OrganizationPolicyServiceTests
 {
     private IOrganizationPolicyRepository _organizationPolicyRepository = null!;
