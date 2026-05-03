@@ -1,6 +1,7 @@
 using System.Text;
 using Chronos.Data;
 using Chronos.Data.Context;
+using Chronos.MainApi.Agent;
 using Chronos.MainApi.Auth;
 using Chronos.MainApi.Auth.Configuration;
 using Chronos.MainApi.Management;
@@ -53,6 +54,7 @@ builder.Services.AddManagementModule(builder.Configuration);
 builder.Services.AddResourcesModule(builder.Configuration);
 builder.Services.AddScheduleModule(builder.Configuration);
 builder.Services.AddSharedModule(builder.Configuration);
+builder.Services.AddAgentModule(builder.Configuration);
 
 
 // Configure JWT Authentication
