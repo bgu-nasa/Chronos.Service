@@ -56,13 +56,13 @@ public class ConstraintExtractor
         foreach (var c in result.HardConstraints ?? [])
         {
             if (KnownConstraintKeys.IsValid(c.Key))
-                draft.AddHardConstraint(c.Key, c.Value);
+                draft.AddHardConstraint(c.Key, c.ValueAsString);
         }
 
         foreach (var p in result.SoftPreferences ?? [])
         {
             if (KnownConstraintKeys.IsValid(p.Key))
-                draft.AddSoftPreference(p.Key, p.Value);
+                draft.AddSoftPreference(p.Key, p.ValueAsString);
         }
 
         return draft;
@@ -83,7 +83,16 @@ public class ConstraintExtractor
         public string Key { get; set; } = string.Empty;
 
         [JsonPropertyName("value")]
-        public string Value { get; set; } = string.Empty;
+        public JsonElement Value { get; set; }
+
+        public string ValueAsString => Value.ValueKind switch
+        {
+            JsonValueKind.String => Value.GetString() ?? string.Empty,
+            JsonValueKind.True => "true",
+            JsonValueKind.False => "false",
+            JsonValueKind.Number => Value.GetRawText(),
+            _ => Value.GetRawText()
+        };
     }
 }
 
