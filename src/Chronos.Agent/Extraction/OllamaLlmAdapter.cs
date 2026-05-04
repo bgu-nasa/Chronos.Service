@@ -7,7 +7,7 @@ using Chronos.Agent.Configuration;
 namespace Chronos.Agent.Extraction;
 
 /// <summary>
-/// LLM adapter for the university Ollama API (https://132.73.84.84/api/chat).
+/// LLM adapter for the university Ollama API.
 /// Supports the Ollama chat endpoint with optional JSON mode.
 /// </summary>
 public class OllamaLlmAdapter : ILlmAdapter

@@ -23,6 +23,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Chronos.Agent\Chronos.Agent.csproj" />
+    <!-- TODO: Move it out of here, I don't like the fact this project knows this: -->
+    <ProjectReference Include="..\..\src\Chronos.MainApi\Chronos.MainApi.csproj" />
   </ItemGroup>
 
 </Project>

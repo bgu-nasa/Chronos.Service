@@ -5,7 +5,7 @@ public class OllamaOptions
 {
     public const string SectionName = "Agent:Ollama";
 
-    public string BaseUrl { get; set; } = "https://132.73.84.84";
+    public string BaseUrl { get; set; } = string.Empty;
     public string Model { get; set; } = "llama4";
 }
 

@@ -8,6 +8,7 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["src/Chronos.MainApi/Chronos.MainApi.csproj", "src/Chronos.MainApi/"]
+COPY ["src/Chronos.Agent/Chronos.Agent.csproj", "src/Chronos.Agent/"]
 COPY ["src/Chronos.Data/Chronos.Data.csproj", "src/Chronos.Data/"]
 COPY ["src/Chronos.Domain/Chronos.Domain.csproj", "src/Chronos.Domain/"]
 COPY ["src/Chronos.Shared/Chronos.Shared.csproj", "src/Chronos.Shared/"]

@@ -23,7 +23,7 @@ User sends message
 └──────┬───────────────┘
        │
        ├──► ILlmAdapter (polymorphic)
-       │     ├── OllamaLlmAdapter   → University API (132.73.84.84)
+       │     ├── OllamaLlmAdapter   → University Ollama API
        │     └── PuterLlmAdapter    → Puter free AI API
        │
        ├──► ConstraintExtractor
@@ -124,7 +124,7 @@ Returns `AgentResponse` with current state, assistant message, draft, and allowe
 
 #### `LlmProviderOptions.cs`
 Configuration classes for the two LLM providers:
-- **`OllamaOptions`** — `BaseUrl`, `Model` (defaults: `https://132.73.84.84`, `llama4`)
+- **`OllamaOptions`** — `BaseUrl`, `Model` (defaults: empty, `phi3`)
 - **`PuterOptions`** — `BaseUrl`, `ApiToken`, `Model` (defaults: `https://api.puter.com`, `gpt-4o-mini`)
 
 Both bind from `appsettings.json` under `Agent:Ollama` and `Agent:Puter` sections.
@@ -186,7 +186,7 @@ Task<LlmResponse> ChatAsync(
 - `LlmOptions { Model?, JsonMode }` — optional overrides per request
 
 #### `OllamaLlmAdapter.cs`
-Adapter for the **university Ollama API** (`https://132.73.84.84/api/chat`):
+Adapter for the **university Ollama API**:
 - Sends `POST /api/chat` with `{ model, messages, stream: false }`
 - Supports `JsonMode` via Ollama's `format: "json"` parameter
 - Model can be overridden per-request via `LlmOptions.Model`
@@ -327,7 +327,7 @@ Configuration in `appsettings.json`:
 {
   "Agent": {
     "Ollama": {
-      "BaseUrl": "https://132.73.84.84",
+      "BaseUrl": "",
       "Model": "llama4"
     },
     "Puter": {
