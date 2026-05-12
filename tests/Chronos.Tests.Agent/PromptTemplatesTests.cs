@@ -52,8 +52,10 @@ public class PromptTemplatesTests
     [Fact]
     public void KnownConstraintKeys_ContainsExpectedHardKeys()
     {
-        Assert.Contains("unavailable_day", KnownConstraintKeys.HardConstraintKeys);
-        Assert.Contains("avoid_weekday", KnownConstraintKeys.HardConstraintKeys);
+        // The agent today supports exactly one hard UserConstraint key — the only one
+        // ActivityConstraintProcessor handles for user-scoped constraints.
+        Assert.Contains("forbidden_timerange", KnownConstraintKeys.HardConstraintKeys);
+        Assert.Single(KnownConstraintKeys.HardConstraintKeys);
     }
 
     [Fact]
@@ -61,10 +63,19 @@ public class PromptTemplatesTests
     {
         Assert.Contains("preferred_weekday", KnownConstraintKeys.SoftPreferenceKeys);
         Assert.Contains("preferred_weekdays", KnownConstraintKeys.SoftPreferenceKeys);
+        Assert.Contains("avoid_weekday", KnownConstraintKeys.SoftPreferenceKeys);
         Assert.Contains("preferred_time_morning", KnownConstraintKeys.SoftPreferenceKeys);
         Assert.Contains("preferred_time_afternoon", KnownConstraintKeys.SoftPreferenceKeys);
         Assert.Contains("preferred_time_evening", KnownConstraintKeys.SoftPreferenceKeys);
         Assert.Contains("preferred_timerange", KnownConstraintKeys.SoftPreferenceKeys);
+    }
+
+    [Fact]
+    public void KnownConstraintKeys_DoesNotContainHallucinatedKeys()
+    {
+        // Regression: these keys never existed in the engine and must never be re-added.
+        Assert.False(KnownConstraintKeys.IsValid("unavailable_day"));
+        Assert.False(KnownConstraintKeys.IsValid("made_up_key"));
     }
 
     [Fact]
@@ -81,6 +92,7 @@ public class PromptTemplatesTests
     public void IsValidKey_ReturnsTrueForKnownKey()
     {
         Assert.True(KnownConstraintKeys.IsValid("preferred_weekday"));
+        Assert.True(KnownConstraintKeys.IsValid("forbidden_timerange"));
         Assert.True(KnownConstraintKeys.IsValid("avoid_weekday"));
     }
 

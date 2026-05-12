@@ -224,12 +224,15 @@ comma-separated weekday lists, booleans (`"true"`/`"false"`), and time ranges
 human-readable error message that flows through to the API response.
 
 #### `KnownConstraintKeys.cs`
-Static catalog of valid constraint/preference keys from the Chronos domain:
+Static catalog of constraint/preference keys the engine **actually does something with** for
+user-submitted data. Verified by tracing the code, not by reading docs:
 
-| Category | Keys |
-|----------|------|
-| Hard constraints | `unavailable_day`, `avoid_weekday` |
-| Soft preferences | `preferred_weekday`, `preferred_weekdays`, `preferred_time_morning`, `preferred_time_afternoon`, `preferred_time_evening`, `preferred_timerange` |
+| Category | Keys | Source |
+|----------|------|--------|
+| Hard constraint (UserConstraint) | `forbidden_timerange` | `ActivityConstraintProcessor.ProcessConstraintAsync` fallback (no `IConstraintHandler` implementations exist; every other key logs "No handler found… Skipping") |
+| Soft preferences (UserPreference) | `preferred_weekday`, `preferred_weekdays`, `avoid_weekday`, `preferred_time_morning`, `preferred_time_afternoon`, `preferred_time_evening`, `preferred_timerange` | `PreferenceWeightedRanker.CandidateMatchesPreference` switch branches |
+
+The activity-only validators (`time_range`, `required_capacity`, `compatible_resource_types`, `location_preference`) deliberately are **not** in this list — they only run on `ActivityConstraint` records loaded by `IActivityConstraintRepository`, never on UserConstraints. Submitting them via the agent would silently do nothing.
 
 Provides `IsValid(key)` for validation and `AllKeys` for prompt generation.
 

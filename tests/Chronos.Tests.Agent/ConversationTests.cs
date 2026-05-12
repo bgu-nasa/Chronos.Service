@@ -49,11 +49,11 @@ public class ConstraintDraftTests
     {
         var draft = new ConstraintDraft();
 
-        draft.AddHardConstraint("avoid_weekday", "Friday");
+        draft.AddHardConstraint("forbidden_timerange", "Friday 09:00 - 17:00");
 
         Assert.Single(draft.HardConstraints);
-        Assert.Equal("avoid_weekday", draft.HardConstraints[0].Key);
-        Assert.Equal("Friday", draft.HardConstraints[0].Value);
+        Assert.Equal("forbidden_timerange", draft.HardConstraints[0].Key);
+        Assert.Equal("Friday 09:00 - 17:00", draft.HardConstraints[0].Value);
     }
 
     [Fact]
@@ -72,7 +72,7 @@ public class ConstraintDraftTests
     public void Clear_RemovesAllItems()
     {
         var draft = new ConstraintDraft();
-        draft.AddHardConstraint("avoid_weekday", "Friday");
+        draft.AddHardConstraint("forbidden_timerange", "Friday 09:00 - 17:00");
         draft.AddSoftPreference("preferred_weekday", "Monday");
 
         draft.Clear();
@@ -252,7 +252,7 @@ public class ConversationSessionTests
     {
         var session = CreateSession();
         var draft = new ConstraintDraft();
-        draft.AddHardConstraint("avoid_weekday", "Friday");
+        draft.AddHardConstraint("forbidden_timerange", "Friday 09:00 - 17:00");
 
         session.SetDraft(draft);
 
