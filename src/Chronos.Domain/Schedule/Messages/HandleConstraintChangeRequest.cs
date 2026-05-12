@@ -8,6 +8,7 @@ public record HandleConstraintChangeRequest(
     ConstraintChangeOperation Operation = ConstraintChangeOperation.Created,
     Guid? ActivityId = null,
     Guid? UserId = null,
-    SchedulingMode Mode = SchedulingMode.Online
+    SchedulingMode Mode = SchedulingMode.Online,
+    Guid? InitiatedByUserId = null
 );
 

@@ -6,6 +6,7 @@ public record SchedulingResult(
     int AssignmentsCreated,
     int AssignmentsModified,
     List<Guid> UnscheduledActivityIds,
-    string? FailureReason
+    string? FailureReason,
+    Guid? InitiatedByUserId = null
 );
 
