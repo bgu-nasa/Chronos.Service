@@ -164,4 +164,36 @@ public class AgentOrchestratorTests
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => _orchestrator.ApproveAsync(sessionId));
     }
+
+    [Fact]
+    public async Task Approve_OneTimeConstraint_SubmitsProposalWithWeekNum()
+    {
+        // End-to-end: extraction emits weekNum → orchestrator carries it onto the
+        // UserConstraint → submitter forwards it to the engine. This is the contract
+        // the /api/schedule/constraints/userConstraint endpoint accepts.
+        var extractionJson = JsonSerializer.Serialize(new
+        {
+            hardConstraints = new[]
+            {
+                new { key = "forbidden_timerange", value = "Tuesday 00:00 - 23:59", weekNum = (int?)21 }
+            },
+            softPreferences = Array.Empty<object>()
+        });
+        SetupOrchestrator(extractionJson: extractionJson);
+
+        var sessionId = await _orchestrator.StartSessionAsync(_userId, _orgId, _periodId);
+        await _orchestrator.SendMessageAsync(sessionId, "Next Tuesday is my son's birthday, I can't work");
+        await _orchestrator.RequestSubmitAsync(sessionId);
+
+        var result = await _orchestrator.ApproveAsync(sessionId);
+
+        Assert.Equal(AgentState.Approved, result.State);
+        _submitter.Verify(
+            s => s.SubmitAsync(It.Is<ConstraintProposal>(p =>
+                p.Constraints.Count == 1 &&
+                p.Constraints[0].WeekNum == 21 &&
+                p.Constraints[0].Key == "forbidden_timerange"),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
 }
