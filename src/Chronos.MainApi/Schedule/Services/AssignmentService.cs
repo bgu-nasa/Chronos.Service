@@ -24,6 +24,7 @@ public class AssignmentService(
         await validationService.ValidateOrganizationAsync(organizationId);
         await ValidateDataAsync(organizationId, slotId, resourceId, activityId);
         await ValidateNoConflictingAssignmentAsync(organizationId, slotId, resourceId, weekNum);
+        await ValidateActivityDurationAsync(organizationId, activityId, slotId);
         var assignment = new Assignment
         {
             Id = Guid.NewGuid(),
@@ -148,6 +149,7 @@ public class AssignmentService(
         var assignment = await ValidateAndGetAssignmentAsync(organizationId, assignmentId);
         await ValidateDataAsync(organizationId, slotId, resourceId, activityId);
         await ValidateNoConflictingAssignmentAsync(organizationId, slotId, resourceId, weekNum, assignmentId);
+        await ValidateActivityDurationAsync(organizationId, activityId, slotId, assignmentId);
         assignment.SlotId = slotId;
         assignment.ResourceId = resourceId;
         assignment.ActivityId = activityId;
@@ -249,6 +251,36 @@ public class AssignmentService(
         {
             logger.LogInformation("Resource {ResourceId} capacity is less than expected students for Activity {ActivityId}", resourceId, activityId);
             throw new BadRequestException("Resource capacity is less than expected students for the activity");
+        }
+    }
+
+    private async Task ValidateActivityDurationAsync(Guid organizationId, Guid activityId, Guid slotId, Guid? excludeAssignmentId = null)
+    {
+        var activity = await activityService.GetActivityAsync(organizationId, activityId);
+        var newSlot = await slotService.GetSlotAsync(organizationId, slotId);
+
+        var existingAssignments = await assignmentRepository.GetByActivityIdAsync(activityId);
+
+        var existingMinutes = 0.0;
+        foreach (var a in existingAssignments)
+        {
+            if (excludeAssignmentId.HasValue && a.Id == excludeAssignmentId.Value)
+                continue;
+
+            var slot = await slotService.GetSlotAsync(organizationId, a.SlotId);
+            if (slot != null)
+                existingMinutes += (slot.ToTime - slot.FromTime).TotalMinutes;
+        }
+
+        var newSlotMinutes = (newSlot.ToTime - newSlot.FromTime).TotalMinutes;
+
+        if (existingMinutes + newSlotMinutes > activity.Duration)
+        {
+            var remainingMinutes = activity.Duration - existingMinutes;
+            logger.LogInformation(
+                "Activity duration exceeded. ActivityId: {ActivityId}, RemainingMinutes: {RemainingMinutes}",
+                activityId, remainingMinutes);
+            throw new BadRequestException($"Activity duration exceeded. Only {remainingMinutes} minutes are still available.");
         }
     }
 
