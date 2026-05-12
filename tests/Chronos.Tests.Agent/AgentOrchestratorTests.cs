@@ -34,10 +34,10 @@ public class AgentOrchestratorTests
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(new LlmResponse(conversationReply ?? "Got it, you want to avoid Fridays."));
 
-        // Extraction reply (JSON mode)
+        // Extraction reply (JSON mode) — uses real engine keys so the validator accepts them.
         var json = extractionJson ?? JsonSerializer.Serialize(new
         {
-            hardConstraints = new[] { new { key = "avoid_weekday", value = "Friday" } },
+            hardConstraints = new[] { new { key = "forbidden_timerange", value = "Friday 09:00 - 17:00" } },
             softPreferences = new[] { new { key = "preferred_weekday", value = "Monday" } }
         });
         _llmAdapter

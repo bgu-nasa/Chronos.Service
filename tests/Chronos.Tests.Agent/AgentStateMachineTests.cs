@@ -61,7 +61,7 @@ public class AgentStateMachineTests
         var session = CreateSession();
         var fsm = new AgentStateMachine(session);
         var draft = new ConstraintDraft();
-        draft.AddHardConstraint("avoid_weekday", "Friday");
+        draft.AddHardConstraint("forbidden_timerange", "Friday 09:00 - 17:00");
 
         fsm.RequestSubmit(draft);
 
@@ -88,7 +88,7 @@ public class AgentStateMachineTests
         session.TransitionTo(AgentState.Approved);
         var fsm = new AgentStateMachine(session);
         var draft = new ConstraintDraft();
-        draft.AddHardConstraint("avoid_weekday", "Friday");
+        draft.AddHardConstraint("forbidden_timerange", "Friday 09:00 - 17:00");
 
         Assert.Throws<InvalidOperationException>(() => fsm.RequestSubmit(draft));
     }
@@ -101,7 +101,7 @@ public class AgentStateMachineTests
         var session = CreateSession();
         var fsm = new AgentStateMachine(session);
         var draft = new ConstraintDraft();
-        draft.AddHardConstraint("avoid_weekday", "Friday");
+        draft.AddHardConstraint("forbidden_timerange", "Friday 09:00 - 17:00");
         fsm.RequestSubmit(draft);
 
         fsm.Approve();
@@ -126,7 +126,7 @@ public class AgentStateMachineTests
         var session = CreateSession();
         var fsm = new AgentStateMachine(session);
         var draft = new ConstraintDraft();
-        draft.AddHardConstraint("avoid_weekday", "Friday");
+        draft.AddHardConstraint("forbidden_timerange", "Friday 09:00 - 17:00");
         fsm.RequestSubmit(draft);
 
         fsm.RequestRevision();
@@ -140,7 +140,7 @@ public class AgentStateMachineTests
         var session = CreateSession();
         var fsm = new AgentStateMachine(session);
         var draft = new ConstraintDraft();
-        draft.AddHardConstraint("avoid_weekday", "Friday");
+        draft.AddHardConstraint("forbidden_timerange", "Friday 09:00 - 17:00");
         fsm.RequestSubmit(draft);
         fsm.RequestRevision();
 
@@ -156,13 +156,13 @@ public class AgentStateMachineTests
         var session = CreateSession();
         var fsm = new AgentStateMachine(session);
         var draft = new ConstraintDraft();
-        draft.AddHardConstraint("avoid_weekday", "Friday");
+        draft.AddHardConstraint("forbidden_timerange", "Friday 09:00 - 17:00");
         fsm.RequestSubmit(draft);
         fsm.RequestRevision();
 
         var newDraft = new ConstraintDraft();
-        newDraft.AddHardConstraint("avoid_weekday", "Friday");
-        newDraft.AddHardConstraint("avoid_weekday", "Tuesday");
+        newDraft.AddHardConstraint("forbidden_timerange", "Friday 09:00 - 17:00");
+        newDraft.AddHardConstraint("forbidden_timerange", "Tuesday 09:00 - 17:00");
         fsm.RequestSubmit(newDraft);
 
         Assert.Equal(AgentState.Submit, session.State);
@@ -190,7 +190,7 @@ public class AgentStateMachineTests
         var session = CreateSession();
         var fsm = new AgentStateMachine(session);
         var draft = new ConstraintDraft();
-        draft.AddHardConstraint("avoid_weekday", "Friday");
+        draft.AddHardConstraint("forbidden_timerange", "Friday 09:00 - 17:00");
         fsm.RequestSubmit(draft);
 
         var actions = fsm.GetAllowedActions();
@@ -206,7 +206,7 @@ public class AgentStateMachineTests
         var session = CreateSession();
         var fsm = new AgentStateMachine(session);
         var draft = new ConstraintDraft();
-        draft.AddHardConstraint("avoid_weekday", "Friday");
+        draft.AddHardConstraint("forbidden_timerange", "Friday 09:00 - 17:00");
         fsm.RequestSubmit(draft);
         fsm.Approve();
 

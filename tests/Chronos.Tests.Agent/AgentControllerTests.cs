@@ -60,7 +60,7 @@ public class AgentControllerTests
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(new LlmResponse(conversationReply));
 
-        var json = """{"hardConstraints":[{"key":"avoid_weekday","value":"Friday"}],"softPreferences":[{"key":"preferred_weekday","value":"Monday"}]}""";
+        var json = """{"hardConstraints":[{"key":"forbidden_timerange","value":"Friday 09:00 - 17:00"}],"softPreferences":[{"key":"preferred_weekday","value":"Monday"}]}""";
         _llmAdapter
             .Setup(a => a.ChatAsync(
                 It.IsAny<IReadOnlyList<ChatMessage>>(),

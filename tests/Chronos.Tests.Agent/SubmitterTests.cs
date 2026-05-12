@@ -18,7 +18,7 @@ public class ChronosSubmitterTests
         var constraints = new List<UserConstraint>
         {
             new() { Id = Guid.NewGuid(), OrganizationId = Guid.NewGuid(), UserId = Guid.NewGuid(),
-                     SchedulingPeriodId = Guid.NewGuid(), Key = "avoid_weekday", Value = "Friday" }
+                     SchedulingPeriodId = Guid.NewGuid(), Key = "forbidden_timerange", Value = "Friday 09:00 - 17:00" }
         };
         var preferences = new List<UserPreference>
         {
@@ -58,18 +58,18 @@ public class ServiceBackedSubmitterTests
 
         var constraints = new List<UserConstraint>
         {
-            MakeConstraint("avoid_weekday", "Friday"),
-            MakeConstraint("unavailable_day", "Saturday")
+            MakeConstraint("forbidden_timerange", "Friday 09:00 - 17:00"),
+            MakeConstraint("forbidden_timerange", "Saturday 09:00 - 17:00")
         };
         var proposal = new ConstraintProposal(_userId, _orgId, _periodId, constraints, new List<UserPreference>());
 
         await submitter.SubmitAsync(proposal);
 
         constraintSvc.Verify(
-            s => s.CreateUserConstraintAsync(_orgId, _userId, _periodId, "avoid_weekday", "Friday", null),
+            s => s.CreateUserConstraintAsync(_orgId, _userId, _periodId, "forbidden_timerange", "Friday 09:00 - 17:00", null),
             Times.Once);
         constraintSvc.Verify(
-            s => s.CreateUserConstraintAsync(_orgId, _userId, _periodId, "unavailable_day", "Saturday", null),
+            s => s.CreateUserConstraintAsync(_orgId, _userId, _periodId, "forbidden_timerange", "Saturday 09:00 - 17:00", null),
             Times.Once);
     }
 

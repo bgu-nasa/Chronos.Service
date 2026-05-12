@@ -6,19 +6,40 @@ using Chronos.Agent.Domain;
 namespace Chronos.Agent.Extraction;
 
 /// <summary>
+/// A single piece of extracted output that the agent rejected, with the reason.
+/// Surfaced to the user so they know which utterances were dropped instead of silently
+/// presenting an incomplete or wrong draft.
+/// </summary>
+/// <param name="Kind">"hardConstraint" or "softPreference".</param>
+/// <param name="Key">The key the LLM produced (may be unknown).</param>
+/// <param name="Value">The value the LLM produced.</param>
+/// <param name="Reason">Human-readable explanation of why the item was rejected.</param>
+public record ExtractionIssue(string Kind, string Key, string Value, string Reason);
+
+/// <summary>
+/// Result of an extraction pass: the validated draft plus any items the LLM produced
+/// that failed validation. The presence of issues does not abort extraction — valid
+/// items are still returned in <see cref="Draft"/>.
+/// </summary>
+public record ExtractionResult(ConstraintDraft Draft, IReadOnlyList<ExtractionIssue> Issues);
+
+/// <summary>
 /// Uses the LLM extraction prompt to parse conversation history into a structured ConstraintDraft.
-/// Validates extracted keys against KnownConstraintKeys.
+/// Constrains the LLM output via Ollama's structured-output schema (key restricted to known
+/// catalog) and validates value formats post-extraction. Rejected items are surfaced as
+/// <see cref="ExtractionIssue"/>s rather than being silently dropped.
 /// </summary>
 public class ConstraintExtractor
 {
     private readonly ILlmAdapter _llmAdapter;
+    private static readonly JsonElement Schema = ConstraintExtractionSchema.Build();
 
     public ConstraintExtractor(ILlmAdapter llmAdapter)
     {
         _llmAdapter = llmAdapter ?? throw new ArgumentNullException(nameof(llmAdapter));
     }
 
-    public async Task<ConstraintDraft> ExtractAsync(
+    public async Task<ExtractionResult> ExtractAsync(
         IReadOnlyList<ChatMessage> conversationMessages,
         CancellationToken cancellationToken = default)
     {
@@ -30,18 +51,18 @@ public class ConstraintExtractor
 
         var response = await _llmAdapter.ChatAsync(
             extractionMessages,
-            new LlmOptions { JsonMode = true },
+            new LlmOptions { JsonMode = true, JsonSchema = Schema },
             cancellationToken);
 
         return ParseResponse(response.Content);
     }
 
-    private static ConstraintDraft ParseResponse(string json)
+    private static ExtractionResult ParseResponse(string json)
     {
-        ExtractionResult? result;
+        ExtractionPayload? result;
         try
         {
-            result = JsonSerializer.Deserialize<ExtractionResult>(json);
+            result = JsonSerializer.Deserialize<ExtractionPayload>(json);
         }
         catch (JsonException ex)
         {
@@ -52,23 +73,47 @@ public class ConstraintExtractor
             throw new ExtractionException("LLM extraction returned null.");
 
         var draft = new ConstraintDraft();
+        var issues = new List<ExtractionIssue>();
 
         foreach (var c in result.HardConstraints ?? [])
-        {
-            if (KnownConstraintKeys.IsValid(c.Key))
-                draft.AddHardConstraint(c.Key, c.ValueAsString);
-        }
+            ProcessItem(c, "hardConstraint", KnownConstraintKeys.HardConstraintKeys,
+                (k, v) => draft.AddHardConstraint(k, v), issues);
 
         foreach (var p in result.SoftPreferences ?? [])
-        {
-            if (KnownConstraintKeys.IsValid(p.Key))
-                draft.AddSoftPreference(p.Key, p.ValueAsString);
-        }
+            ProcessItem(p, "softPreference", KnownConstraintKeys.SoftPreferenceKeys,
+                (k, v) => draft.AddSoftPreference(k, v), issues);
 
-        return draft;
+        return new ExtractionResult(draft, issues);
     }
 
-    private sealed class ExtractionResult
+    private static void ProcessItem(
+        KeyValueItem item,
+        string kind,
+        IReadOnlySet<string> validKeys,
+        Action<string, string> addToDraft,
+        List<ExtractionIssue> issues)
+    {
+        var key = item.Key ?? string.Empty;
+        var value = item.ValueAsString;
+
+        if (!validKeys.Contains(key))
+        {
+            issues.Add(new ExtractionIssue(kind, key, value,
+                $"Unknown {kind} key '{key}'. Expected one of: {string.Join(", ", validKeys)}."));
+            return;
+        }
+
+        var valueError = ConstraintValueValidator.Validate(key, value);
+        if (valueError is not null)
+        {
+            issues.Add(new ExtractionIssue(kind, key, value, valueError));
+            return;
+        }
+
+        addToDraft(key, value);
+    }
+
+    private sealed class ExtractionPayload
     {
         [JsonPropertyName("hardConstraints")]
         public List<KeyValueItem>? HardConstraints { get; set; }
@@ -91,6 +136,8 @@ public class ConstraintExtractor
             JsonValueKind.True => "true",
             JsonValueKind.False => "false",
             JsonValueKind.Number => Value.GetRawText(),
+            JsonValueKind.Undefined => string.Empty,
+            JsonValueKind.Null => string.Empty,
             _ => Value.GetRawText()
         };
     }
@@ -102,3 +149,4 @@ public class ExtractionException : Exception
     public ExtractionException(string message) : base(message) { }
     public ExtractionException(string message, Exception inner) : base(message, inner) { }
 }
+
