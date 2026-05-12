@@ -44,7 +44,7 @@ public class ResourceServiceTests
     {
         var typeId = Guid.NewGuid();
 
-        var result = await _sut.CreateResourceAsync(Guid.NewGuid(), _orgId, typeId, "Building A", "Room 101", 50);
+        var result = await _sut.CreateResourceAsync(_orgId, typeId, "Building A", "Room 101", 50);
 
         Assert.Multiple(() =>
         {

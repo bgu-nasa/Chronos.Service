@@ -27,7 +27,6 @@ public class ResourceController(
         var organizationId = ControllerUtils.GetOrganizationIdAndFailIfMissing(HttpContext, logger);
         
         var resource = await resourceService.CreateResourceAsync(
-            request.Id,
             request.OrganizationId,
             request.ResourceTypeId,
             request.Location,

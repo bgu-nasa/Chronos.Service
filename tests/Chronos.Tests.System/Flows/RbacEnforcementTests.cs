@@ -57,7 +57,7 @@ public class RbacEnforcementTests
 
         var response = await client.PostJsonAsync("/api/resources/resource",
             new CreateResourceRequest(
-                Guid.NewGuid(), _orgId, _resourceTypeId, "B1-101", "Room-V", 30));
+                _orgId, _resourceTypeId, "B1-101", "Room-V", 30));
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
@@ -70,7 +70,7 @@ public class RbacEnforcementTests
             new SimpleRoleForToken(Role.ResourceManager, _orgId));
 
         var response = await client.PostJsonAsync("/api/resources/resource/types",
-            new CreateResourceTypeRequest(Guid.NewGuid(), _orgId, "Lab"));
+            new CreateResourceTypeRequest(_orgId, "Lab"));
 
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         var body = await response.ReadJsonAsync<ResourceTypeResponse>();
@@ -113,7 +113,7 @@ public class RbacEnforcementTests
 
         var resourceId = Guid.NewGuid();
         await managerClient.PostJsonAsync("/api/resources/resource",
-            new CreateResourceRequest(resourceId, _orgId, _resourceTypeId, "B2-200", "Room-Orig", 40));
+            new CreateResourceRequest(_orgId, _resourceTypeId, "B2-200", "Room-Orig", 40));
 
         var otherOrgId = Guid.NewGuid();
         var otherClient = _factory.CreateAuthenticatedClient(

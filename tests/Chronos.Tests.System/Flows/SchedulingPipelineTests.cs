@@ -104,14 +104,13 @@ public class SchedulingPipelineTests
     public async Task GivenExistingOrg_WhenCreateResourceTypeAndResource_ThenReturns201()
     {
         var typeResponse = await _client.PostJsonAsync("/api/resources/resource/types",
-            new CreateResourceTypeRequest(Guid.NewGuid(), _orgId, "Lecture Hall"));
+            new CreateResourceTypeRequest(_orgId, "Lecture Hall"));
         typeResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var resourceType = await typeResponse.ReadJsonAsync<ResourceTypeResponse>();
 
         var resourceResponse = await _client.PostJsonAsync("/api/resources/resource",
-            new CreateResourceRequest(
-                Guid.NewGuid(), _orgId, resourceType!.Id, "Building A", "Hall-101", 200));
+            new CreateResourceRequest(_orgId, resourceType!.Id, "Building A", "Hall-101", 200));
 
         resourceResponse.StatusCode.Should().Be(HttpStatusCode.Created);
         var resource = await resourceResponse.ReadJsonAsync<ResourceResponse>();
@@ -133,7 +132,7 @@ public class SchedulingPipelineTests
         var subjectResponse = await _client.PostJsonAsync(
             $"/api/department/{deptId}/resources/subjects/Subject",
             new CreateSubjectRequest(
-                Guid.NewGuid(), _orgId, deptId, periodId, "CS201", "Data Structures"));
+                _orgId, deptId, periodId, "CS201", "Data Structures"));
         subjectResponse.StatusCode.Should().Be(HttpStatusCode.Created);
         var subject = await subjectResponse.ReadJsonAsync<SubjectResponse>();
 
@@ -144,8 +143,7 @@ public class SchedulingPipelineTests
 
         var activityResponse = await _client.PostJsonAsync(
             $"/api/department/{deptId}/resources/subjects/Subject/{subject!.Id}/activities",
-            new CreateActivityRequest(
-                Guid.NewGuid(), _orgId, subject.Id,
+            new CreateActivityRequest(_orgId, subject.Id,
                 Guid.Parse(user!.UserId), "Lecture", 120, 2));
 
         activityResponse.StatusCode.Should().Be(HttpStatusCode.Created);
