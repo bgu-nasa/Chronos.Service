@@ -32,5 +32,7 @@ public static class ModuleDiExtension
         services.AddScoped<IExternalActivityService, ExternalActivityService>();
         services.AddScoped<IExternalResourceService, ExternalResourceService>();
         services.AddScoped<IExternalSubjectService, ExternalSubjectService>();
+
+        services.AddHostedService<SchedulingResultNotificationConsumer>();
     }
 }

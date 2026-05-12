@@ -11,5 +11,6 @@ public class RabbitMqOptions
     public string VirtualHost { get; set; } = "/";
     public string BatchQueueName { get; set; } = "chronos.scheduling.batch";
     public string OnlineQueueName { get; set; } = "chronos.scheduling.online";
+    public string ResultsQueueName { get; set; } = "chronos.scheduling.results";
     public string ExchangeName { get; set; } = "chronos.scheduling";
 }
