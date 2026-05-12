@@ -5,6 +5,7 @@ using Chronos.Data.Repositories.Schedule;
 using Chronos.Domain.Schedule;
 using Chronos.Domain.Schedule.Messages;
 using Chronos.MainApi.Schedule.Messaging;
+using Chronos.MainApi.Shared.Extensions;
 using Chronos.MainApi.Shared.ExternalMangement;
 using Chronos.Shared.Exceptions;
 
@@ -16,9 +17,27 @@ public class ActivityConstraintService(
     IManagementExternalService validationService,
     IMessagePublisher messagePublisher,
     IActivityRepository activityRepository,
-    ISubjectRepository subjectRepository
+    ISubjectRepository subjectRepository,
+    IHttpContextAccessor httpContextAccessor
 ) : IActivityConstraintService
 {
+    private Guid? GetInitiatingUserId()
+    {
+        var user = httpContextAccessor.HttpContext?.User;
+        if (user?.Identity?.IsAuthenticated != true)
+        {
+            return null;
+        }
+
+        try
+        {
+            return user.GetUserId();
+        }
+        catch
+        {
+            return null;
+        }
+    }
 
 
     public async Task<Guid> CreateActivityConstraintAsync(Guid organizationId, Guid activityId, string key, string value, int? weekNum = null)
@@ -53,7 +72,8 @@ public class ActivityConstraintService(
                 Operation: ConstraintChangeOperation.Created,
                 ActivityId: constraint.ActivityId,
                 UserId: null,
-                Mode: SchedulingMode.Online
+                Mode: SchedulingMode.Online,
+                InitiatedByUserId: GetInitiatingUserId()
             ),
             "request.online"
         );
@@ -111,7 +131,8 @@ public class ActivityConstraintService(
                 Operation: ConstraintChangeOperation.Updated,
                 ActivityId: constraint.ActivityId,
                 UserId: null,
-                Mode: SchedulingMode.Online
+                Mode: SchedulingMode.Online,
+                InitiatedByUserId: GetInitiatingUserId()
             ),
             "request.online"
         );
@@ -137,7 +158,8 @@ public class ActivityConstraintService(
                 Operation: ConstraintChangeOperation.Deleted,
                 ActivityId: constraint.ActivityId,
                 UserId: null,
-                Mode: SchedulingMode.Online
+                Mode: SchedulingMode.Online,
+                InitiatedByUserId: GetInitiatingUserId()
             ),
             "request.online"
         );

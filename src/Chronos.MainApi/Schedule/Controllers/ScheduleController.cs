@@ -4,6 +4,7 @@ using Chronos.MainApi.Schedule.Extensions;
 using Chronos.MainApi.Schedule.Messaging;
 using Chronos.MainApi.Schedule.Services;
 using Chronos.MainApi.Shared.Controllers.Utils;
+using Chronos.MainApi.Shared.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -333,7 +334,8 @@ public class ScheduleController(
         var request = new SchedulePeriodRequest(
             SchedulingPeriodId: schedulingPeriodId,
             OrganizationId: organizationId,
-            Mode: SchedulingMode.Batch
+            Mode: SchedulingMode.Batch,
+            InitiatedByUserId: User.GetUserId()
         );
 
         // Publish to RabbitMQ
