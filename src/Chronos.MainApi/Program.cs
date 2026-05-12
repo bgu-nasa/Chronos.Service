@@ -7,7 +7,6 @@ using Chronos.MainApi.Auth.Configuration;
 using Chronos.MainApi.Management;
 using Chronos.MainApi.Resources;
 using Chronos.MainApi.Schedule;
-using Chronos.MainApi.Schedule.Messaging;
 using Chronos.MainApi.Shared;
 using Chronos.MainApi.Shared.Extensions;
 using Chronos.MainApi.Shared.Middleware;
@@ -56,8 +55,8 @@ builder.Services.AddResourcesModule(builder.Configuration);
 builder.Services.AddScheduleModule(builder.Configuration);
 builder.Services.AddSharedModule(builder.Configuration);
 builder.Services.AddAgentModule(builder.Configuration);
+builder.Services.AddSignalRHubs();
 
-builder.Services.AddSignalR();
 
 // Configure JWT Authentication
 var authConfig = builder.Configuration.GetSection(nameof(AuthConfiguration)).Get<AuthConfiguration>();
@@ -78,19 +77,6 @@ builder.Services.AddAuthentication(options =>
         ValidAudience = authConfig.Audience,
         ValidateLifetime = true,
         ClockSkew = TimeSpan.Zero
-    };
-    options.Events = new JwtBearerEvents
-    {
-        OnMessageReceived = context =>
-        {
-            var accessToken = context.Request.Query["access_token"];
-            if (!string.IsNullOrEmpty(accessToken) &&
-                context.HttpContext.Request.Path.StartsWithSegments("/hubs/scheduling"))
-            {
-                context.Token = accessToken;
-            }
-            return Task.CompletedTask;
-        }
     };
 });
 
@@ -142,10 +128,9 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:5173")
+        policy.AllowAnyOrigin()
             .AllowAnyHeader()
-            .AllowAnyMethod()
-            .AllowCredentials();
+            .AllowAnyMethod();
     });
 });
 
@@ -168,7 +153,7 @@ app.UseAuthorization();
 // app.UseHttpsRedirection();
 app.UseHttpMetrics();   // tracks request duration, count, and status codes
 app.MapControllers();
-app.MapHub<SchedulingNotificationsHub>("/hubs/scheduling");
+app.MapSignalRHubs();
 app.MapMetrics();       // exposes /metrics endpoint for Prometheus to scrape
 
 app.Run();

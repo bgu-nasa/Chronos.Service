@@ -32,27 +32,56 @@ public class AgentOrchestrator
     private readonly ConstraintExtractor _extractor;
     private readonly IAgentSubmitter _submitter;
     private readonly IConversationStore _store;
+    private readonly TimeProvider _timeProvider;
 
     public AgentOrchestrator(
         ILlmAdapter llmAdapter,
         ConstraintExtractor extractor,
         IAgentSubmitter submitter,
-        IConversationStore store)
+        IConversationStore store,
+        TimeProvider? timeProvider = null)
     {
         _llmAdapter = llmAdapter ?? throw new ArgumentNullException(nameof(llmAdapter));
         _extractor = extractor ?? throw new ArgumentNullException(nameof(extractor));
         _submitter = submitter ?? throw new ArgumentNullException(nameof(submitter));
         _store = store ?? throw new ArgumentNullException(nameof(store));
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     /// <summary>Creates a new conversation session.</summary>
+    /// <param name="ianaTimezone">
+    /// IANA timezone name of the invoking client (e.g. "Asia/Jerusalem"). Used to
+    /// localize the date/day shown to the LLM so it can resolve relative phrases like
+    /// "tomorrow" against the user's calendar. Falls back to UTC if null/unrecognised.
+    /// </param>
     public async Task<Guid> StartSessionAsync(
-        Guid userId, Guid organizationId, Guid schedulingPeriodId)
+        Guid userId, Guid organizationId, Guid schedulingPeriodId, string? ianaTimezone = null)
     {
         var session = new ConversationSession(userId, organizationId, schedulingPeriodId);
-        session.AddSystemMessage(PromptTemplates.ConversationSystemPrompt);
+        var timezone = ResolveTimezoneOrUtc(ianaTimezone);
+        session.AddSystemMessage(
+            PromptTemplates.BuildConversationSystemPrompt(_timeProvider.GetUtcNow(), timezone));
         await _store.SaveAsync(session);
         return session.Id;
+    }
+
+    private static TimeZoneInfo ResolveTimezoneOrUtc(string? ianaTimezone)
+    {
+        if (string.IsNullOrWhiteSpace(ianaTimezone))
+            return TimeZoneInfo.Utc;
+
+        try
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById(ianaTimezone);
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            return TimeZoneInfo.Utc;
+        }
+        catch (InvalidTimeZoneException)
+        {
+            return TimeZoneInfo.Utc;
+        }
     }
 
     /// <summary>Sends a user message and gets a conversational reply from the LLM.</summary>
@@ -158,6 +187,7 @@ public class AgentOrchestrator
             OrganizationId = session.OrganizationId,
             UserId = session.UserId,
             SchedulingPeriodId = session.SchedulingPeriodId,
+            WeekNum = c.WeekNum,
             Key = c.Key,
             Value = c.Value
         }).ToList();

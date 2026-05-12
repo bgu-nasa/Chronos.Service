@@ -35,7 +35,10 @@ public static class ConstraintExtractionSchema
                                 type = "string",
                                 @enum = KnownConstraintKeys.HardConstraintKeys.ToArray()
                             },
-                            value = new { type = "string" }
+                            value = new { type = "string" },
+                            // Optional ISO week number (1..53) for one-time constraints.
+                            // Null/omitted = recurring across the whole scheduling period.
+                            weekNum = new { type = new[] { "integer", "null" } }
                         },
                         required = new[] { "key", "value" },
                         additionalProperties = false

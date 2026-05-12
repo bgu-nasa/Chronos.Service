@@ -76,14 +76,50 @@ public class ConstraintExtractor
         var issues = new List<ExtractionIssue>();
 
         foreach (var c in result.HardConstraints ?? [])
-            ProcessItem(c, "hardConstraint", KnownConstraintKeys.HardConstraintKeys,
-                (k, v) => draft.AddHardConstraint(k, v), issues);
+            ProcessHardItem(c, draft, issues);
 
         foreach (var p in result.SoftPreferences ?? [])
-            ProcessItem(p, "softPreference", KnownConstraintKeys.SoftPreferenceKeys,
-                (k, v) => draft.AddSoftPreference(k, v), issues);
+            ProcessSoftItem(p, draft, issues);
 
         return new ExtractionResult(draft, issues);
+    }
+
+    private static void ProcessHardItem(
+        KeyValueItem item, ConstraintDraft draft, List<ExtractionIssue> issues)
+    {
+        var key = item.Key ?? string.Empty;
+        var value = item.ValueAsString;
+
+        if (!KnownConstraintKeys.HardConstraintKeys.Contains(key))
+        {
+            issues.Add(new ExtractionIssue("hardConstraint", key, value,
+                $"Unknown hardConstraint key '{key}'. Expected one of: " +
+                $"{string.Join(", ", KnownConstraintKeys.HardConstraintKeys)}."));
+            return;
+        }
+
+        var valueError = ConstraintValueValidator.Validate(key, value);
+        if (valueError is not null)
+        {
+            issues.Add(new ExtractionIssue("hardConstraint", key, value, valueError));
+            return;
+        }
+
+        var weekError = ConstraintValueValidator.ValidateWeekNum(item.WeekNum);
+        if (weekError is not null)
+        {
+            issues.Add(new ExtractionIssue("hardConstraint", key, value, weekError));
+            return;
+        }
+
+        draft.AddHardConstraint(key, value, item.WeekNum);
+    }
+
+    private static void ProcessSoftItem(
+        KeyValueItem item, ConstraintDraft draft, List<ExtractionIssue> issues)
+    {
+        ProcessItem(item, "softPreference", KnownConstraintKeys.SoftPreferenceKeys,
+            (k, v) => draft.AddSoftPreference(k, v), issues);
     }
 
     private static void ProcessItem(
@@ -129,6 +165,14 @@ public class ConstraintExtractor
 
         [JsonPropertyName("value")]
         public JsonElement Value { get; set; }
+
+        /// <summary>
+        /// Optional ISO week number (1..53) emitted by the LLM for one-time hard
+        /// constraints. Null/absent for recurring constraints and for soft preferences.
+        /// Maps to <c>UserConstraint.WeekNum</c> on submit.
+        /// </summary>
+        [JsonPropertyName("weekNum")]
+        public int? WeekNum { get; set; }
 
         public string ValueAsString => Value.ValueKind switch
         {

@@ -249,12 +249,102 @@ public class ConstraintExtractorTests
     }
 
     [Fact]
-    public async Task ExtractAsync_MalformedJson_ThrowsExtractionException()
+    public async Task ExtractAsync_OneTimeHardConstraint_ParsesWeekNumIntoDraft()
     {
-        var adapter = CreateMockAdapter("this is not json at all");
+        // Engine accepts UserConstraint.WeekNum (nullable ISO week) for one-time
+        // exceptions like "next Tuesday only" — extraction must preserve it end-to-end.
+        var json = JsonSerializer.Serialize(new
+        {
+            hardConstraints = new[]
+            {
+                new { key = "forbidden_timerange", value = "Tuesday 00:00 - 23:59", weekNum = (int?)21 }
+            },
+            softPreferences = Array.Empty<object>()
+        });
+        var adapter = CreateMockAdapter(json);
         var extractor = new ConstraintExtractor(adapter.Object);
 
-        await Assert.ThrowsAsync<ExtractionException>(
-            () => extractor.ExtractAsync(new List<ChatMessage> { new("user", "test") }));
+        var result = await extractor.ExtractAsync(new List<ChatMessage> { new("user", "test") });
+
+        Assert.Empty(result.Issues);
+        var hard = Assert.Single(result.Draft.HardConstraints);
+        Assert.Equal("forbidden_timerange", hard.Key);
+        Assert.Equal("Tuesday 00:00 - 23:59", hard.Value);
+        Assert.Equal(21, hard.WeekNum);
+    }
+
+    [Fact]
+    public async Task ExtractAsync_RecurringHardConstraint_HasNullWeekNum()
+    {
+        var json = JsonSerializer.Serialize(new
+        {
+            hardConstraints = new[]
+            {
+                new { key = "forbidden_timerange", value = "Friday 09:00 - 17:00", weekNum = (int?)null }
+            },
+            softPreferences = Array.Empty<object>()
+        });
+        var adapter = CreateMockAdapter(json);
+        var extractor = new ConstraintExtractor(adapter.Object);
+
+        var result = await extractor.ExtractAsync(new List<ChatMessage> { new("user", "test") });
+
+        Assert.Empty(result.Issues);
+        var hard = Assert.Single(result.Draft.HardConstraints);
+        Assert.Null(hard.WeekNum);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(54)]
+    [InlineData(-3)]
+    public async Task ExtractAsync_OutOfRangeWeekNum_ReportedAsIssue(int weekNum)
+    {
+        var json = JsonSerializer.Serialize(new
+        {
+            hardConstraints = new[]
+            {
+                new { key = "forbidden_timerange", value = "Tuesday 00:00 - 23:59", weekNum }
+            },
+            softPreferences = Array.Empty<object>()
+        });
+        var adapter = CreateMockAdapter(json);
+        var extractor = new ConstraintExtractor(adapter.Object);
+
+        var result = await extractor.ExtractAsync(new List<ChatMessage> { new("user", "test") });
+
+        Assert.Empty(result.Draft.HardConstraints);
+        var issue = Assert.Single(result.Issues);
+        Assert.Equal("hardConstraint", issue.Kind);
+        Assert.Contains("weekNum", issue.Reason);
+    }
+
+    [Fact]
+    public async Task ExtractAsync_SchemaIncludesWeekNumOnHardConstraintItems()
+    {
+        var json = """{"hardConstraints":[],"softPreferences":[]}""";
+        var adapter = CreateMockAdapter(json);
+        var extractor = new ConstraintExtractor(adapter.Object);
+
+        LlmOptions? capturedOptions = null;
+        adapter
+            .Setup(a => a.ChatAsync(
+                It.IsAny<IReadOnlyList<ChatMessage>>(),
+                It.IsAny<LlmOptions?>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<IReadOnlyList<ChatMessage>, LlmOptions?, CancellationToken>((_, opts, _) => capturedOptions = opts)
+            .ReturnsAsync(new LlmResponse(json));
+
+        await extractor.ExtractAsync(new List<ChatMessage> { new("user", "test") });
+
+        Assert.NotNull(capturedOptions);
+        Assert.NotNull(capturedOptions!.JsonSchema);
+        var hardItemProps = capturedOptions.JsonSchema!.Value
+            .GetProperty("properties")
+            .GetProperty("hardConstraints")
+            .GetProperty("items")
+            .GetProperty("properties");
+        Assert.True(hardItemProps.TryGetProperty("weekNum", out _),
+            "Hard constraint items in extraction schema must declare weekNum.");
     }
 }
