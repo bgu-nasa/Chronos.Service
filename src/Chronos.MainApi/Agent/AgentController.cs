@@ -29,7 +29,8 @@ public class AgentController(
 
         logger.LogInformation("Agent: starting session for user {UserId}", userId);
 
-        var sessionId = await orchestrator.StartSessionAsync(userId, organizationId, request.SchedulingPeriodId);
+        var sessionId = await orchestrator.StartSessionAsync(
+            userId, organizationId, request.SchedulingPeriodId, request.Timezone);
 
         return CreatedAtAction(nameof(SendMessage), new { sessionId }, new { sessionId });
     }

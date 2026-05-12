@@ -52,6 +52,19 @@ public static class ConstraintValueValidator
         };
     }
 
+    /// <summary>
+    /// Validates an ISO week number for a UserConstraint. Returns null when valid,
+    /// or an error message. Null input is treated as valid (recurring constraint).
+    /// </summary>
+    public static string? ValidateWeekNum(int? weekNum)
+    {
+        if (weekNum is null)
+            return null;
+        if (weekNum is < 1 or > 53)
+            return $"weekNum {weekNum} is out of ISO week range (expected 1..53).";
+        return null;
+    }
+
     // --- Single weekday (preferred_weekday, avoid_weekday) ---
     private static string? ValidateWeekday(string value)
     {
