@@ -55,6 +55,7 @@ builder.Services.AddResourcesModule(builder.Configuration);
 builder.Services.AddScheduleModule(builder.Configuration);
 builder.Services.AddSharedModule(builder.Configuration);
 builder.Services.AddAgentModule(builder.Configuration);
+builder.Services.AddSignalRHubs();
 
 
 // Configure JWT Authentication
@@ -152,6 +153,7 @@ app.UseAuthorization();
 // app.UseHttpsRedirection();
 app.UseHttpMetrics();   // tracks request duration, count, and status codes
 app.MapControllers();
+app.MapSignalRHubs();
 app.MapMetrics();       // exposes /metrics endpoint for Prometheus to scrape
 
 app.Run();
