@@ -6,6 +6,7 @@ using Chronos.MainApi.Schedule.Messaging;
 using Chronos.MainApi.Schedule.Services;
 using Chronos.MainApi.Shared.ExternalMangement;
 using Chronos.Shared.Exceptions;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using NSubstitute.ReturnsExtensions;
@@ -34,13 +35,17 @@ public class ActivityConstraintServiceTests
         _messagePublisher = Substitute.For<IMessagePublisher>();
         _logger = Substitute.For<ILogger<ActivityConstraintService>>();
 
+        var httpContextAccessor = Substitute.For<IHttpContextAccessor>();
+        httpContextAccessor.HttpContext.Returns((HttpContext?)null);
+
         _service = new ActivityConstraintService(
             _activityConstraintRepository,
             _logger,
             _validationService,
             _messagePublisher,
             _activityRepository,
-            _subjectRepository);
+            _subjectRepository,
+            httpContextAccessor);
     }
 
     #region CreateActivityConstraintAsync Tests
