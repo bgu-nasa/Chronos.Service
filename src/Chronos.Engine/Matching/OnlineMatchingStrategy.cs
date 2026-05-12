@@ -71,7 +71,8 @@ public class OnlineMatchingStrategy(
                 0,
                 0,
                 new List<Guid>(),
-                $"Algorithm failed: {ex.Message}"
+                $"Algorithm failed: {ex.Message}",
+                constraintRequest.InitiatedByUserId
             );
         }
     }
@@ -99,7 +100,8 @@ public class OnlineMatchingStrategy(
                 0,
                 0,
                 new List<Guid>(),
-                "Activity id could not be resolved from constraint event"
+                "Activity id could not be resolved from constraint event",
+                request.InitiatedByUserId
             );
         }
 
@@ -117,7 +119,8 @@ public class OnlineMatchingStrategy(
                 0,
                 0,
                 new List<Guid>(),
-                "Activity not found"
+                "Activity not found",
+                request.InitiatedByUserId
             );
         }
 
@@ -130,7 +133,8 @@ public class OnlineMatchingStrategy(
                 0,
                 0,
                 new List<Guid>(),
-                "Activity not currently assigned"
+                "Activity not currently assigned",
+                request.InitiatedByUserId
             );
         }
 
@@ -146,7 +150,8 @@ public class OnlineMatchingStrategy(
                 0,
                 0,
                 new List<Guid> { activity.Id },
-                "Could not resolve scheduling period for assignment"
+                "Could not resolve scheduling period for assignment",
+                request.InitiatedByUserId
             );
         }
 
@@ -170,7 +175,8 @@ public class OnlineMatchingStrategy(
                 0,
                 0,
                 new List<Guid>(),
-                "Current assignment remains valid"
+                "Current assignment remains valid",
+                request.InitiatedByUserId
             );
         }
 
@@ -181,6 +187,7 @@ public class OnlineMatchingStrategy(
             excludedSlots,
             request.OrganizationId,
             schedulingPeriodId,
+            request.InitiatedByUserId,
             cancellationToken
         );
     }
@@ -198,7 +205,8 @@ public class OnlineMatchingStrategy(
                 0,
                 0,
                 new List<Guid>(),
-                "User-scope event missing user id"
+                "User-scope event missing user id",
+                request.InitiatedByUserId
             );
         }
 
@@ -210,7 +218,8 @@ public class OnlineMatchingStrategy(
                 0,
                 0,
                 new List<Guid>(),
-                "User-scope event missing scheduling period id"
+                "User-scope event missing scheduling period id",
+                request.InitiatedByUserId
             );
         }
 
@@ -226,7 +235,8 @@ public class OnlineMatchingStrategy(
                 0,
                 0,
                 new List<Guid>(),
-                "No assignments found in scheduling period"
+                "No assignments found in scheduling period",
+                request.InitiatedByUserId
             );
         }
 
@@ -253,7 +263,8 @@ public class OnlineMatchingStrategy(
                 0,
                 0,
                 new List<Guid>(),
-                "No assigned activities were affected by this user constraint"
+                "No assigned activities were affected by this user constraint",
+                request.InitiatedByUserId
             );
         }
 
@@ -302,6 +313,7 @@ public class OnlineMatchingStrategy(
                 excludedSlots,
                 request.OrganizationId,
                 request.SchedulingPeriodId,
+                request.InitiatedByUserId,
                 cancellationToken
             );
 
@@ -323,7 +335,8 @@ public class OnlineMatchingStrategy(
             0,
             modifiedCount,
             unresolvedActivityIds,
-            reason
+            reason,
+            request.InitiatedByUserId
         );
     }
 
@@ -334,6 +347,7 @@ public class OnlineMatchingStrategy(
         HashSet<Guid> excludedSlots,
         Guid organizationId,
         Guid schedulingPeriodId,
+        Guid? initiatedByUserId,
         CancellationToken cancellationToken
     )
     {
@@ -401,7 +415,8 @@ public class OnlineMatchingStrategy(
                 0,
                 1,
                 new List<Guid>(),
-                "Activity successfully re-matched within the same timeslot"
+                "Activity successfully re-matched within the same timeslot",
+                initiatedByUserId
             );
         }
 
@@ -432,7 +447,8 @@ public class OnlineMatchingStrategy(
                 0,
                 0,
                 new List<Guid> { activity.Id },
-                "Activity could not be rescheduled according to the new constraint. Keep current assignment for now and consider assigning a substitute lecturer or cancelling the activity."
+                "Activity could not be rescheduled according to the new constraint. Keep current assignment for now and consider assigning a substitute lecturer or cancelling the activity.",
+                initiatedByUserId
             );
         }
 
@@ -473,7 +489,8 @@ public class OnlineMatchingStrategy(
             0,
             1,
             new List<Guid>(),
-            "Activity successfully re-matched"
+            "Activity successfully re-matched",
+            initiatedByUserId
         );
     }
 

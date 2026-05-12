@@ -87,7 +87,8 @@ public class RankingAlgorithmStrategy(
                     0,
                     0,
                     new List<Guid>(),
-                    "No activities to schedule"
+                    "No activities to schedule",
+                    periodRequest.InitiatedByUserId
                 );
             }
 
@@ -108,7 +109,8 @@ public class RankingAlgorithmStrategy(
                     0,
                     0,
                     new List<Guid>(),
-                    $"Scheduling period {periodRequest.SchedulingPeriodId} was not found"
+                    $"Scheduling period {periodRequest.SchedulingPeriodId} was not found",
+                    periodRequest.InitiatedByUserId
                 );
             }
 
@@ -164,7 +166,8 @@ public class RankingAlgorithmStrategy(
                 unscheduledActivities.ToList(),
                 unscheduledActivities.Any()
                     ? $"{unscheduledActivities.Count} activities could not be scheduled"
-                    : null
+                    : null,
+                periodRequest.InitiatedByUserId
             );
 
             _logger.LogInformation(
@@ -192,7 +195,8 @@ public class RankingAlgorithmStrategy(
                 0,
                 0,
                 new List<Guid>(),
-                $"Algorithm failed: {ex.Message}"
+                $"Algorithm failed: {ex.Message}",
+                periodRequest.InitiatedByUserId
             );
         }
     }
