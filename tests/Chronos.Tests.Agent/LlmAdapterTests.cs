@@ -123,6 +123,38 @@ public class OllamaLlmAdapterTests
     }
 
     [Fact]
+    public async Task ChatAsync_WithJsonSchema_SerializesSchemaIntoFormat()
+    {
+        // Verifies the bug fix: when a JSON Schema is supplied (used by the constraint extractor
+        // to lock the model to known keys), it must be serialized into Ollama's `format` field
+        // as a JSON object — not the literal string "json", which would defeat the schema.
+        var expectedResponse = JsonSerializer.Serialize(new
+        {
+            message = new { role = "assistant", content = "{}" }
+        });
+
+        var handler = new CapturingHttpMessageHandler(HttpStatusCode.OK, expectedResponse);
+        var httpClient = new HttpClient(handler);
+        var options = new OllamaOptions { BaseUrl = "https://localhost", Model = "llama4" };
+        var adapter = new OllamaLlmAdapter(httpClient, options);
+
+        var schemaJson = """{"type":"object","properties":{"foo":{"type":"string"}},"required":["foo"]}""";
+        using var schemaDoc = JsonDocument.Parse(schemaJson);
+        var schema = schemaDoc.RootElement.Clone();
+
+        await adapter.ChatAsync(
+            new List<ChatMessage> { new("user", "test") },
+            new LlmOptions { JsonMode = true, JsonSchema = schema },
+            CancellationToken.None);
+
+        using var doc = JsonDocument.Parse(handler.CapturedRequestBody!);
+        var format = doc.RootElement.GetProperty("format");
+        Assert.Equal(JsonValueKind.Object, format.ValueKind);
+        Assert.Equal("object", format.GetProperty("type").GetString());
+        Assert.Equal("string", format.GetProperty("properties").GetProperty("foo").GetProperty("type").GetString());
+    }
+
+    [Fact]
     public async Task ChatAsync_NonSuccess_ThrowsHttpRequestException()
     {
         var httpClient = CreateMockHttpClient(HttpStatusCode.InternalServerError, "error");

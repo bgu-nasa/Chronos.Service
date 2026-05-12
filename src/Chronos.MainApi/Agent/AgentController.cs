@@ -130,11 +130,16 @@ public class AgentController(
                 result.Draft.SoftPreferences.Select(p => new DraftItemResponse(p.Key, p.Value)).ToList());
         }
 
+        var issues = result.ValidationIssues
+            .Select(i => new ValidationIssueResponse(i.Kind, i.Key, i.Value, i.Reason))
+            .ToList();
+
         return new AgentSessionResponse(
             sessionId,
             result.State,
             result.AssistantMessage,
             draftResponse,
-            result.AllowedActions);
+            result.AllowedActions,
+            issues);
     }
 }

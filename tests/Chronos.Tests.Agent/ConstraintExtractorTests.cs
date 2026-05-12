@@ -34,14 +34,15 @@ public class ConstraintExtractorTests
             new("user", "I can't work Fridays and prefer Mondays")
         };
 
-        var draft = await extractor.ExtractAsync(messages);
+        var result = await extractor.ExtractAsync(messages);
 
-        Assert.Single(draft.HardConstraints);
-        Assert.Equal("avoid_weekday", draft.HardConstraints[0].Key);
-        Assert.Equal("Friday", draft.HardConstraints[0].Value);
-        Assert.Single(draft.SoftPreferences);
-        Assert.Equal("preferred_weekday", draft.SoftPreferences[0].Key);
-        Assert.Equal("Monday", draft.SoftPreferences[0].Value);
+        Assert.Single(result.Draft.HardConstraints);
+        Assert.Equal("avoid_weekday", result.Draft.HardConstraints[0].Key);
+        Assert.Equal("Friday", result.Draft.HardConstraints[0].Value);
+        Assert.Single(result.Draft.SoftPreferences);
+        Assert.Equal("preferred_weekday", result.Draft.SoftPreferences[0].Key);
+        Assert.Equal("Monday", result.Draft.SoftPreferences[0].Value);
+        Assert.Empty(result.Issues);
     }
 
     [Fact]
@@ -63,17 +64,18 @@ public class ConstraintExtractorTests
         var adapter = CreateMockAdapter(json);
         var extractor = new ConstraintExtractor(adapter.Object);
 
-        var draft = await extractor.ExtractAsync(new List<ChatMessage>
+        var result = await extractor.ExtractAsync(new List<ChatMessage>
         {
             new("user", "test")
         });
 
-        Assert.Equal(2, draft.HardConstraints.Count);
-        Assert.Equal(2, draft.SoftPreferences.Count);
+        Assert.Equal(2, result.Draft.HardConstraints.Count);
+        Assert.Equal(2, result.Draft.SoftPreferences.Count);
+        Assert.Empty(result.Issues);
     }
 
     [Fact]
-    public async Task ExtractAsync_FiltersOutInvalidKeys()
+    public async Task ExtractAsync_FiltersOutInvalidKeys_AndReportsIssues()
     {
         var json = JsonSerializer.Serialize(new
         {
@@ -91,12 +93,88 @@ public class ConstraintExtractorTests
         var adapter = CreateMockAdapter(json);
         var extractor = new ConstraintExtractor(adapter.Object);
 
-        var draft = await extractor.ExtractAsync(new List<ChatMessage> { new("user", "test") });
+        var result = await extractor.ExtractAsync(new List<ChatMessage> { new("user", "test") });
 
-        Assert.Single(draft.HardConstraints);
-        Assert.Equal("avoid_weekday", draft.HardConstraints[0].Key);
-        Assert.Single(draft.SoftPreferences);
-        Assert.Equal("preferred_weekday", draft.SoftPreferences[0].Key);
+        Assert.Single(result.Draft.HardConstraints);
+        Assert.Equal("avoid_weekday", result.Draft.HardConstraints[0].Key);
+        Assert.Single(result.Draft.SoftPreferences);
+        Assert.Equal("preferred_weekday", result.Draft.SoftPreferences[0].Key);
+
+        // Issues should surface — no silent dropping
+        Assert.Equal(2, result.Issues.Count);
+        Assert.Contains(result.Issues, i => i.Key == "made_up_key" && i.Kind == "hardConstraint");
+        Assert.Contains(result.Issues, i => i.Key == "bogus_pref" && i.Kind == "softPreference");
+    }
+
+    [Fact]
+    public async Task ExtractAsync_RejectsInvalidWeekdayValue_AndReportsIssue()
+    {
+        var json = JsonSerializer.Serialize(new
+        {
+            hardConstraints = new[]
+            {
+                new { key = "avoid_weekday", value = "Funday" },
+                new { key = "unavailable_day", value = "Saturday" }
+            },
+            softPreferences = Array.Empty<object>()
+        });
+        var adapter = CreateMockAdapter(json);
+        var extractor = new ConstraintExtractor(adapter.Object);
+
+        var result = await extractor.ExtractAsync(new List<ChatMessage> { new("user", "test") });
+
+        // Only the valid Saturday entry survives
+        Assert.Single(result.Draft.HardConstraints);
+        Assert.Equal("Saturday", result.Draft.HardConstraints[0].Value);
+
+        // The "Funday" entry is reported, not silently dropped
+        var issue = Assert.Single(result.Issues);
+        Assert.Equal("avoid_weekday", issue.Key);
+        Assert.Equal("Funday", issue.Value);
+        Assert.Contains("weekday", issue.Reason, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ExtractAsync_RejectsInvalidTimeRange_AndReportsIssue()
+    {
+        var json = JsonSerializer.Serialize(new
+        {
+            hardConstraints = Array.Empty<object>(),
+            softPreferences = new[]
+            {
+                new { key = "preferred_timerange", value = "Monday 9 to 11" }
+            }
+        });
+        var adapter = CreateMockAdapter(json);
+        var extractor = new ConstraintExtractor(adapter.Object);
+
+        var result = await extractor.ExtractAsync(new List<ChatMessage> { new("user", "test") });
+
+        Assert.Empty(result.Draft.SoftPreferences);
+        var issue = Assert.Single(result.Issues);
+        Assert.Equal("preferred_timerange", issue.Key);
+        Assert.Contains("time range", issue.Reason, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ExtractAsync_RejectsNonBooleanForBooleanKey()
+    {
+        var json = JsonSerializer.Serialize(new
+        {
+            hardConstraints = Array.Empty<object>(),
+            softPreferences = new[]
+            {
+                new { key = "preferred_time_morning", value = "yes please" }
+            }
+        });
+        var adapter = CreateMockAdapter(json);
+        var extractor = new ConstraintExtractor(adapter.Object);
+
+        var result = await extractor.ExtractAsync(new List<ChatMessage> { new("user", "test") });
+
+        Assert.Empty(result.Draft.SoftPreferences);
+        var issue = Assert.Single(result.Issues);
+        Assert.Contains("boolean", issue.Reason, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -106,14 +184,15 @@ public class ConstraintExtractorTests
         var adapter = CreateMockAdapter(json);
         var extractor = new ConstraintExtractor(adapter.Object);
 
-        var draft = await extractor.ExtractAsync(new List<ChatMessage> { new("user", "test") });
+        var result = await extractor.ExtractAsync(new List<ChatMessage> { new("user", "test") });
 
-        Assert.Empty(draft.HardConstraints);
-        Assert.Empty(draft.SoftPreferences);
+        Assert.Empty(result.Draft.HardConstraints);
+        Assert.Empty(result.Draft.SoftPreferences);
+        Assert.Empty(result.Issues);
     }
 
     [Fact]
-    public async Task ExtractAsync_SendsExtractionPromptAsSystemMessage()
+    public async Task ExtractAsync_SendsExtractionPromptAndSchemaInOptions()
     {
         var json = """{"hardConstraints":[],"softPreferences":[]}""";
         var adapter = CreateMockAdapter(json);
@@ -125,7 +204,12 @@ public class ConstraintExtractorTests
             It.Is<IReadOnlyList<ChatMessage>>(msgs =>
                 msgs[0].Role == "system" &&
                 msgs[0].Content.Contains("hardConstraints")),
-            It.Is<LlmOptions?>(o => o != null && o.JsonMode),
+            It.Is<LlmOptions?>(o =>
+                o != null
+                && o.JsonMode
+                && o.JsonSchema != null
+                && o.JsonSchema.Value.GetProperty("properties")
+                    .GetProperty("hardConstraints").GetProperty("type").GetString() == "array"),
             It.IsAny<CancellationToken>()),
             Times.Once);
     }

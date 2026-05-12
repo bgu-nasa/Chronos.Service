@@ -202,10 +202,26 @@ Adapter for the **Puter free AI API** (`https://api.puter.com/drivers/call`):
 #### `ConstraintExtractor.cs`
 Uses the LLM in **extraction mode** (JSON output) to parse conversation into structured data:
 1. Prepends the extraction system prompt to conversation messages
-2. Calls `ILlmAdapter.ChatAsync()` with `JsonMode = true`
+2. Calls `ILlmAdapter.ChatAsync()` with `JsonMode = true` **and a JSON Schema**
+   built from `ConstraintExtractionSchema` so Ollama constrains generation to the
+   known key catalog (no more invented keys)
 3. Parses the JSON response into hard constraints + soft preferences
-4. **Validates keys** against `KnownConstraintKeys` — invalid keys are silently filtered
-5. Throws `ExtractionException` if the LLM returns malformed JSON
+4. **Validates keys** against `KnownConstraintKeys` and **values** against
+   `ConstraintValueValidator` (weekday names, booleans, time-range syntax)
+5. Returns an `ExtractionResult` containing the valid `Draft` plus an
+   `Issues` list — invalid items are reported, never silently dropped
+6. Throws `ExtractionException` if the LLM returns malformed JSON
+
+#### `ConstraintExtractionSchema.cs`
+Builds the JSON Schema passed to Ollama's `format` field. Restricts each item's
+`key` to the appropriate catalog (`HardConstraintKeys` / `SoftPreferenceKeys`)
+so the model cannot emit keys outside the known set.
+
+#### `ConstraintValueValidator.cs`
+Per-key value-format validation: weekday names (full English, case-insensitive),
+comma-separated weekday lists, booleans (`"true"`/`"false"`), and time ranges
+(`"Day HH:mm - HH:mm"` entries). Returns `null` when valid, otherwise a
+human-readable error message that flows through to the API response.
 
 #### `KnownConstraintKeys.cs`
 Static catalog of valid constraint/preference keys from the Chronos domain:

@@ -9,11 +9,18 @@ namespace Chronos.Agent;
 /// <summary>
 /// Response returned by the orchestrator for each user interaction.
 /// </summary>
+/// <param name="ValidationIssues">
+/// Items the LLM produced during the most recent extraction that failed schema or
+/// value-format validation. Empty for non-extraction interactions. Surfaced so the
+/// UI can warn the user that part of their input was dropped instead of silently
+/// presenting an incomplete draft.
+/// </param>
 public record AgentResponse(
     AgentState State,
     string? AssistantMessage,
     ConstraintDraft? Draft,
-    IReadOnlySet<AgentAction> AllowedActions);
+    IReadOnlySet<AgentAction> AllowedActions,
+    IReadOnlyList<ExtractionIssue> ValidationIssues);
 
 /// <summary>
 /// Main entry point for the Chronos conversational agent.
@@ -66,7 +73,8 @@ public class AgentOrchestrator
             session.State,
             response.Content,
             session.Draft,
-            fsm.GetAllowedActions());
+            fsm.GetAllowedActions(),
+            Array.Empty<ExtractionIssue>());
     }
 
     /// <summary>Triggers LLM extraction and transitions to Submit state.</summary>
@@ -76,8 +84,8 @@ public class AgentOrchestrator
         var session = await GetSessionOrThrowAsync(sessionId);
         var fsm = new AgentStateMachine(session);
 
-        var draft = await _extractor.ExtractAsync(session.Messages, cancellationToken);
-        fsm.RequestSubmit(draft);
+        var extraction = await _extractor.ExtractAsync(session.Messages, cancellationToken);
+        fsm.RequestSubmit(extraction.Draft);
 
         await _store.SaveAsync(session);
 
@@ -85,7 +93,8 @@ public class AgentOrchestrator
             session.State,
             null,
             session.Draft,
-            fsm.GetAllowedActions());
+            fsm.GetAllowedActions(),
+            extraction.Issues);
     }
 
     /// <summary>Approves the current draft, converts to proposal, and submits to Chronos.</summary>
@@ -109,7 +118,8 @@ public class AgentOrchestrator
             session.State,
             null,
             session.Draft,
-            fsm.GetAllowedActions());
+            fsm.GetAllowedActions(),
+            Array.Empty<ExtractionIssue>());
     }
 
     /// <summary>Returns to Revision state for further edits.</summary>
@@ -126,7 +136,8 @@ public class AgentOrchestrator
             session.State,
             null,
             session.Draft,
-            fsm.GetAllowedActions());
+            fsm.GetAllowedActions(),
+            Array.Empty<ExtractionIssue>());
     }
 
     private async Task<ConversationSession> GetSessionOrThrowAsync(Guid sessionId)

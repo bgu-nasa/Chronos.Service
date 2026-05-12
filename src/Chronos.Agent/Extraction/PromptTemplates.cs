@@ -57,9 +57,12 @@ public static class PromptTemplates
         }
 
         Rules:
-        1. Only use keys from the valid lists above.
-        2. Value formats:
+        1. Only use keys from the valid lists above. The output is also constrained by a
+           JSON schema that enforces this — invented keys will be rejected.
+        2. Value formats (these are validated post-extraction; items with malformed
+           values are rejected and reported back to the user):
            - Weekday names: Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday
+             (full English names, no abbreviations like "Mon" or "tomorrow")
            - Multiple weekdays: comma-separated (e.g. "Monday,Wednesday,Friday")
            - Boolean: "true" or "false"
            - Time ranges: "Day HH:mm - HH:mm" format, comma-separated for multiple
@@ -67,5 +70,7 @@ public static class PromptTemplates
         4. If no constraints or preferences are found, return empty arrays.
         5. Distinguish "can't / unavailable / not possible" as hardConstraints
            from "prefer / like / would rather" as softPreferences.
+        6. If the user mentions something that does not fit any valid key/value format,
+           omit it entirely rather than inventing a key or coercing the value.
         """;
 }

@@ -35,7 +35,9 @@ public class OllamaLlmAdapter : ILlmAdapter
             ["stream"] = false
         };
 
-        if (options?.JsonMode == true)
+        if (options?.JsonSchema is { } schema)
+            requestBody["format"] = schema;
+        else if (options?.JsonMode == true)
             requestBody["format"] = "json";
 
         var json = JsonSerializer.Serialize(requestBody);
