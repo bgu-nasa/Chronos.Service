@@ -1,7 +1,6 @@
 namespace Chronos.MainApi.Resources.Contracts;
 
 public sealed record CreateResourceRequest(
-    Guid Id,
     Guid OrganizationId,
     Guid ResourceTypeId,
     string Location,
