@@ -190,33 +190,50 @@ public class DiscordLoggerProvider : ILoggerProvider
     {
         var messages = new List<string>();
         var currentMessage = new StringBuilder();
-        
-        // Discord message limit is 2000 characters, but we'll use 4000 as specified and let Discord split if needed
-        // Actually, let's be safe and use 1900 to account for formatting
+
+        // Discord hard limit is 2000 chars per message. Code-fence wrapping adds
+        // ```\n ... \n``` (8 chars). We use 1900 as the safe inner-content budget.
         const int maxLength = 1900;
+
+        void FlushBuffer()
+        {
+            if (currentMessage.Length == 0) return;
+            messages.Add($"```\n{currentMessage}\n```");
+            currentMessage.Clear();
+        }
 
         foreach (var log in logs)
         {
             var logLine = FormatLogEntry(log);
-            
-            // If adding this log would exceed the limit, start a new message
-            if (currentMessage.Length + logLine.Length > maxLength)
+
+            // If the entry itself is bigger than a single message, split it
+            // into chunks and emit each chunk as its own message so nothing
+            // is dropped or truncated.
+            if (logLine.Length > maxLength)
             {
-                if (currentMessage.Length > 0)
+                FlushBuffer();
+
+                var totalChunks = (logLine.Length + maxLength - 1) / maxLength;
+                for (var i = 0; i < totalChunks; i++)
                 {
-                    messages.Add($"```\n{currentMessage}\n```");
-                    currentMessage.Clear();
+                    var start = i * maxLength;
+                    var len = Math.Min(maxLength, logLine.Length - start);
+                    var chunk = logLine.Substring(start, len);
+                    messages.Add($"```\n[part {i + 1}/{totalChunks}]\n{chunk}\n```");
                 }
+                continue;
+            }
+
+            // +1 accounts for the newline AppendLine adds.
+            if (currentMessage.Length + logLine.Length + 1 > maxLength)
+            {
+                FlushBuffer();
             }
 
             currentMessage.AppendLine(logLine);
         }
 
-        // Add any remaining logs
-        if (currentMessage.Length > 0)
-        {
-            messages.Add($"```\n{currentMessage}\n```");
-        }
+        FlushBuffer();
 
         return messages;
     }
@@ -242,19 +259,7 @@ public class DiscordLoggerProvider : ILoggerProvider
         if (log.Exception != null)
         {
             sb.AppendLine();
-            sb.Append($"   Exception: {log.Exception.GetType().Name}: {log.Exception.Message}");
-            
-            if (!string.IsNullOrWhiteSpace(log.Exception.StackTrace))
-            {
-                // Truncate stack trace to avoid overly long messages
-                var stackTrace = log.Exception.StackTrace;
-                if (stackTrace.Length > 500)
-                {
-                    stackTrace = stackTrace.Substring(0, 500) + "...";
-                }
-                sb.AppendLine();
-                sb.Append($"   {stackTrace}");
-            }
+            sb.Append($"   Exception: {log.Exception}");
         }
 
         return sb.ToString();
