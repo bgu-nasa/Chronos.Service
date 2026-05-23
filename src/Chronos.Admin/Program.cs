@@ -1,4 +1,3 @@
-using Chronos.Admin;
 using Chronos.Admin.Configuration;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
@@ -19,8 +18,6 @@ builder.Services.Configure<AdminConfiguration>(
 
 // Required by AppDbContext when registered — null bypasses tenant query filters (see Offboarding).
 builder.Services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
-
-builder.Services.AddAdminModule(builder.Configuration);
 
 using var host = builder.Build();
 

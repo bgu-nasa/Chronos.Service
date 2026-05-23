@@ -59,8 +59,7 @@ flowchart TB
 
 ```
 src/Chronos.Admin/
-├── Program.cs                 # CLI entry + host bootstrap
-├── ModuleDiExtension.cs       # DI registration
+├── Program.cs                 # CLI entry + host bootstrap + DI registration
 ├── docs/                      # Design and architecture documentation
 ├── Configuration/
 │   └── AdminConfiguration.cs
@@ -231,7 +230,7 @@ The admin CLI reads tenant data through existing `Chronos.Data` (`AppDbContext`)
 ConnectionStrings__DefaultConnection=Host=localhost;Database=chronos;...
 ```
 
-Registration (planned in `AddAdminModule`):
+Registration (planned in `Program.cs`):
 
 ```csharp
 services.AddDbContext<AppDbContext>(options =>
