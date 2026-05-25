@@ -1,5 +1,3 @@
-using Chronos.Admin.Auth;
-using Chronos.Admin.Cli;
 using Chronos.Admin.CredStore;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -18,7 +16,7 @@ builder.Configuration
     .AddEnvironmentVariables();
 
 builder.Services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
-builder.Services.AddAdminAuthModule(builder.Configuration);
+builder.Services.AddAdminCredStore(builder.Configuration);
 
 using var host = builder.Build();
 
@@ -28,5 +26,11 @@ await using (var scope = host.Services.CreateAsyncScope())
     await db.Database.MigrateAsync();
 }
 
-var rootCommand = AdminCommandRoot.Build(host);
+var rootCommand = new RootCommand("Chronos platform administration CLI.");
+rootCommand.SetHandler(() =>
+{
+    Console.WriteLine("Chronos.Admin — credential store ready (auth commands ship in a later PR).");
+    Console.WriteLine("See docs/Chronos.Admin.md in this project for the design.");
+});
+
 return await rootCommand.Parse(args).InvokeAsync();
