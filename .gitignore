@@ -1,6 +1,10 @@
 # DRS
 *.pptx
 
+# Chronos.Admin SQLite credential store (local only)
+**/admin-creds.db
+**/admin-creds.db-*
+
 # Project Chronos Specific Ignore:
 *.secret*
 *.cert*
