@@ -1,3 +1,4 @@
+using Chronos.Admin.Auth;
 using Chronos.Admin.CredStore;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -16,7 +17,7 @@ builder.Configuration
     .AddEnvironmentVariables();
 
 builder.Services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
-builder.Services.AddAdminCredStore(builder.Configuration);
+builder.Services.AddAdminAuthModule(builder.Configuration);
 
 using var host = builder.Build();
 
