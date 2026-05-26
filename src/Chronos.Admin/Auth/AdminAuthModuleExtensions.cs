@@ -1,4 +1,5 @@
 using Chronos.Admin.Auth.Services;
+using Chronos.Admin.Auth.Session;
 using Chronos.Admin.CredStore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,7 +18,7 @@ public static class AdminAuthModuleExtensions
         services.AddScoped<IAdminTokenGenerator, AdminTokenGenerator>();
         services.AddScoped<IAdminBootstrapService, AdminBootstrapService>();
 
-        // Session: services.AddAdminSession(); — added in PR 3 (Auth/Session/AdminSessionModuleExtensions.cs)
+        services.AddAdminSession();
 
         return services;
     }
