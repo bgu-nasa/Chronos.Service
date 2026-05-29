@@ -24,7 +24,7 @@ public class AssignmentService(
         await validationService.ValidateOrganizationAsync(organizationId);
         await ValidateDataAsync(organizationId, slotId, resourceId, activityId);
         await ValidateNoConflictingAssignmentAsync(organizationId, slotId, resourceId, weekNum);
-        await ValidateActivityDurationAsync(organizationId, activityId, slotId);
+        await ValidateActivityDurationAsync(organizationId, activityId, slotId, weekNum);
         var assignment = new Assignment
         {
             Id = Guid.NewGuid(),
@@ -149,7 +149,7 @@ public class AssignmentService(
         var assignment = await ValidateAndGetAssignmentAsync(organizationId, assignmentId);
         await ValidateDataAsync(organizationId, slotId, resourceId, activityId);
         await ValidateNoConflictingAssignmentAsync(organizationId, slotId, resourceId, weekNum, assignmentId);
-        await ValidateActivityDurationAsync(organizationId, activityId, slotId, assignmentId);
+        await ValidateActivityDurationAsync(organizationId, activityId, slotId, weekNum, assignmentId);
         assignment.SlotId = slotId;
         assignment.ResourceId = resourceId;
         assignment.ActivityId = activityId;
@@ -254,7 +254,7 @@ public class AssignmentService(
         }
     }
 
-    private async Task ValidateActivityDurationAsync(Guid organizationId, Guid activityId, Guid slotId, Guid? excludeAssignmentId = null)
+    private async Task ValidateActivityDurationAsync(Guid organizationId, Guid activityId, Guid slotId, int? weekNum, Guid? excludeAssignmentId = null)
     {
         var activity = await activityService.GetActivityAsync(organizationId, activityId);
         var newSlot = await slotService.GetSlotAsync(organizationId, slotId);
@@ -262,7 +262,7 @@ public class AssignmentService(
         var existingAssignments = await assignmentRepository.GetByActivityIdAsync(activityId);
 
         var existingMinutes = 0.0;
-        foreach (var a in existingAssignments)
+        foreach (var a in existingAssignments.Where(a => a.WeekNum == weekNum))
         {
             if (excludeAssignmentId.HasValue && a.Id == excludeAssignmentId.Value)
                 continue;
