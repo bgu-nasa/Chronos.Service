@@ -2,7 +2,9 @@
 
 ## Status
 
-**Phase 1 (current):** Project scaffold only. The CLI builds and prints a placeholder message. No authentication, SQLite, or tenant queries are implemented.
+**Phase 2 (current):** Platform admin authentication is implemented. SQLite stores `AdminUser` records (same profile/auth fields as MainApi `User`, without `OrganizationId`). Commands: `login`, `accounts add`, `accounts list`. Validators, BCrypt, and JWT issuance follow the same patterns as `Chronos.MainApi/Auth/`, adapted for the CLI session file.
+
+**Not yet implemented:** Cross-tenant `orgs` commands (Phase 3), Docker/CI/tests (Phase 4).
 
 See [Implementation phases](#implementation-phases) at the end of this document.
 
@@ -159,13 +161,15 @@ On first run, if the SQLite cred store has no accounts:
 
 1. Read `AdminConfiguration:DefaultEmail` and `AdminConfiguration:DefaultPassword` from configuration/environment.
 2. If either is missing, fail with a clear message directing the operator to set env vars.
-3. Create the first `AdminAccount` with `IsBootstrap = true` and a BCrypt password hash.
+3. Create the first `AdminUser` with `IsBootstrap = true` and a BCrypt password hash (profile fields match MainApi `User`; names from `DefaultFirstName` / `DefaultLastName`).
 
 Environment variable examples:
 
 ```text
 AdminConfiguration__DefaultEmail=admin@internal.example
 AdminConfiguration__DefaultPassword=<strong-secret>
+AdminConfiguration__DefaultFirstName=Platform
+AdminConfiguration__DefaultLastName=Administrator
 AdminConfiguration__SecretKey=<jwt-signing-key-min-32-chars>
 AdminConfiguration__CredStorePath=./data/admin-creds.db
 ```
@@ -196,19 +200,22 @@ Isolated from PostgreSQL migrations in `Chronos.Data`.
 
 ### DbContext
 
-`AdminCredDbContext` lives in `Chronos.Admin` only (planned folder: `CredStore/`).
+`AdminCredDbContext` lives in `Chronos.Admin/CredStore/`.
 
-### Schema sketch
+### Schema
 
-**Table: `AdminAccounts`**
+**Table: `AdminUsers`** (mirrors MainApi `User` minus `OrganizationId`)
 
 | Column | Type | Notes |
 |--------|------|-------|
 | `Id` | GUID | Primary key |
-| `Email` | string | Unique, normalized lowercase |
+| `Email` | string | Unique index |
 | `PasswordHash` | string | BCrypt |
+| `FirstName`, `LastName` | string | Profile (same as MainApi) |
+| `Verified` | bool | |
+| `AvatarUrl` | string? | Optional |
 | `IsBootstrap` | bool | First seeded account |
-| `CreatedAt` | DateTimeOffset | UTC |
+| `CreatedAt`, `UpdatedAt` | DateTime | UTC (`ObjectInformation`) |
 
 ### Connection
 
@@ -230,7 +237,7 @@ The admin CLI reads tenant data through existing `Chronos.Data` (`AppDbContext`)
 ConnectionStrings__DefaultConnection=Host=localhost;Database=chronos;...
 ```
 
-Registration (planned in `Program.cs`):
+Registration (planned in Phase 3):
 
 ```csharp
 services.AddDbContext<AppDbContext>(options =>
@@ -238,7 +245,7 @@ services.AddDbContext<AppDbContext>(options =>
 services.AddServiceRepositories(); // or targeted repository registration
 ```
 
-No `AppDbContext` registration exists in the scaffold to avoid requiring Postgres at startup.
+`AppDbContext` is not registered yet so the CLI does not require PostgreSQL at startup.
 
 ---
 
@@ -250,8 +257,13 @@ No `AppDbContext` registration exists in the scaffold to avoid requiring Postgre
 | `AdminConfiguration:CredStorePath` | `AdminConfiguration__CredStorePath` | SQLite file path |
 | `AdminConfiguration:DefaultEmail` | `AdminConfiguration__DefaultEmail` | Bootstrap admin email |
 | `AdminConfiguration:DefaultPassword` | `AdminConfiguration__DefaultPassword` | Bootstrap admin password |
-| `AdminConfiguration:SecretKey` | `AdminConfiguration__SecretKey` | Token signing key |
+| `AdminConfiguration:DefaultFirstName` | `AdminConfiguration__DefaultFirstName` | Bootstrap first name (default Platform) |
+| `AdminConfiguration:DefaultLastName` | `AdminConfiguration__DefaultLastName` | Bootstrap last name (default Administrator) |
+| `AdminConfiguration:SecretKey` | `AdminConfiguration__SecretKey` | Token signing key (min 32 chars for bootstrap) |
+| `AdminConfiguration:Issuer` | `AdminConfiguration__Issuer` | JWT issuer (default ChronosAdmin) |
+| `AdminConfiguration:Audience` | `AdminConfiguration__Audience` | JWT audience (default ChronosAdminCli) |
 | `AdminConfiguration:TokenExpiryMinutes` | `AdminConfiguration__TokenExpiryMinutes` | Session lifetime (default 480) |
+| `AdminConfiguration:CredStoreConnection` | `AdminConfiguration__CredStoreConnection` | Optional full SQLite connection string |
 
 Files:
 
@@ -300,8 +312,8 @@ Planned for Phase 4: Dockerfile, `docker-compose` service, publish workflow entr
 
 | Phase | Scope | Status |
 |-------|--------|--------|
-| **1** | Empty project, CLI stub, this design doc | **Done (scaffold)** |
-| **2** | SQLite `AdminCredDbContext`, bootstrap seed, `login`, `accounts add/list` | Planned |
+| **1** | Empty project, CLI stub, this design doc | **Done** |
+| **2** | SQLite `AdminCredDbContext`, bootstrap seed, `login`, `accounts add/list` | **Done** |
 | **3** | `orgs list` / `orgs show` via `Chronos.Data` cross-tenant reads | Planned |
 | **4** | Docker, CI publish, `.env.example`, tests (`Chronos.Tests.Admin`) | Planned |
 | **5** | Optional HTTP API | Future |
