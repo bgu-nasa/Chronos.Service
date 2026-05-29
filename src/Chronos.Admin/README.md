@@ -27,6 +27,12 @@ Table output is the default; `--json` is supported for scripting. See [docs/Chro
 
 ```bash
 # From the Chronos.Service repository root
+export AdminConfiguration__DefaultEmail=admin@internal.example
+export AdminConfiguration__DefaultPassword='<strong-password>'
+export AdminConfiguration__SecretKey='<signing-key-at-least-32-chars>'
+
+dotnet run --project src/Chronos.Admin -- login --email admin@internal.example
+dotnet run --project src/Chronos.Admin -- accounts list
 dotnet run --project src/Chronos.Admin -- --help
 ```
 
@@ -46,7 +52,9 @@ Settings live in `AppSettings/appsettings.json`. In deployment, prefer environme
 
 - `ConnectionStrings__DefaultConnection` — PostgreSQL (tenant data)
 - `AdminConfiguration__DefaultEmail` / `DefaultPassword` — first-run bootstrap admin
+- `AdminConfiguration__DefaultFirstName` / `DefaultLastName` — bootstrap profile names
 - `AdminConfiguration__CredStorePath` — SQLite file for admin accounts (default `./data/admin-creds.db`)
-- `AdminConfiguration__SecretKey` — signing key for admin sessions
+- `AdminConfiguration__SecretKey` — signing key for admin sessions (min 32 characters)
+- `AdminConfiguration__Issuer` / `Audience` — JWT issuer and audience (defaults `ChronosAdmin` / `ChronosAdminCli`)
 
 Full reference: [docs/Chronos.Admin.md](docs/Chronos.Admin.md#configuration-reference).
