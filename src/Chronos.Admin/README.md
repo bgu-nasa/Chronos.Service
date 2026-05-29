@@ -17,6 +17,7 @@ Customer JWTs, org headers, and org-scoped user records are not used for admin a
 | Command | Description |
 |---------|-------------|
 | `login` | Sign in and persist a session for later commands |
+| `logout` | Remove the saved session on this machine |
 | `accounts add` / `accounts list` | Manage platform admin accounts |
 | `orgs list` | All organizations (id, name, admin emails, user count) |
 | `orgs show <id>` | Detail for one organization |
@@ -31,8 +32,11 @@ export AdminConfiguration__DefaultEmail=admin@internal.example
 export AdminConfiguration__DefaultPassword='<strong-password>'
 export AdminConfiguration__SecretKey='<signing-key-at-least-32-chars>'
 
-dotnet run --project src/Chronos.Admin -- login --email admin@internal.example
+dotnet run --project src/Chronos.Admin -- login --email admin@internal.example --password '<password>'
 dotnet run --project src/Chronos.Admin -- accounts list
+# Session is stored at %USERPROFILE%\.chronos-admin\session — later commands reuse it until logout or expiry.
+dotnet run --project src/Chronos.Admin -- logout
+dotnet run --project src/Chronos.Admin -- accounts add ops@internal.example --first-name Ops --last-name User --password OpsPass12
 dotnet run --project src/Chronos.Admin -- --help
 ```
 

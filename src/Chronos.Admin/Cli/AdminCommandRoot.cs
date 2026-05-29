@@ -1,5 +1,6 @@
 using System.CommandLine;
 using System.CommandLine.Invocation;
+using Microsoft.EntityFrameworkCore;
 using Chronos.Admin.Auth.Contracts;
 using Chronos.Admin.Auth.Services;
 using Chronos.Admin.Auth.Session;
@@ -18,9 +19,6 @@ public static class AdminCommandRoot
 
         var emailOption = new Option<string?>("--email", "Platform admin email address.");
         var passwordOption = new Option<string?>("--password", "Password (prompted if omitted).");
-        var firstNameOption = new Option<string>("--first-name", "Account first name.") { IsRequired = true };
-        var lastNameOption = new Option<string>("--last-name", "Account last name.") { IsRequired = true };
-
         var loginCommand = new Command("login", "Sign in and save a session for later commands.");
         loginCommand.AddOption(emailOption);
         loginCommand.AddOption(passwordOption);
@@ -29,6 +27,12 @@ public static class AdminCommandRoot
             var email = context.ParseResult.GetValueForOption(emailOption);
             var password = context.ParseResult.GetValueForOption(passwordOption);
             context.ExitCode = await RunLoginAsync(host, email, password);
+        });
+
+        var logoutCommand = new Command("logout", "Clear the saved admin session on this machine.");
+        logoutCommand.SetHandler(async (InvocationContext context) =>
+        {
+            context.ExitCode = await RunLogoutAsync(host);
         });
 
         var accountsCommand = new Command("accounts", "Manage platform admin accounts.");
@@ -41,15 +45,17 @@ public static class AdminCommandRoot
 
         var accountsAddCommand = new Command("add", "Add a platform admin account.");
         var addEmailArgument = new Argument<string>("email", "Email address for the new account.");
+        var addFirstNameOption = new Option<string>("--first-name", "Account first name.");
+        var addLastNameOption = new Option<string>("--last-name", "Account last name.");
         accountsAddCommand.AddArgument(addEmailArgument);
-        accountsAddCommand.AddOption(firstNameOption);
-        accountsAddCommand.AddOption(lastNameOption);
+        accountsAddCommand.AddOption(addFirstNameOption);
+        accountsAddCommand.AddOption(addLastNameOption);
         accountsAddCommand.AddOption(passwordOption);
         accountsAddCommand.SetHandler(async (InvocationContext context) =>
         {
             var email = context.ParseResult.GetValueForArgument(addEmailArgument);
-            var firstName = context.ParseResult.GetValueForOption(firstNameOption)!;
-            var lastName = context.ParseResult.GetValueForOption(lastNameOption)!;
+            var firstName = context.ParseResult.GetValueForOption(addFirstNameOption);
+            var lastName = context.ParseResult.GetValueForOption(addLastNameOption);
             var password = context.ParseResult.GetValueForOption(passwordOption);
             context.ExitCode = await RunAccountsAddAsync(host, email, firstName, lastName, password);
         });
@@ -58,6 +64,7 @@ public static class AdminCommandRoot
         accountsCommand.AddCommand(accountsAddCommand);
 
         root.AddCommand(loginCommand);
+        root.AddCommand(logoutCommand);
         root.AddCommand(accountsCommand);
 
         return root;
@@ -88,6 +95,14 @@ public static class AdminCommandRoot
         }
     }
 
+    private static async Task<int> RunLogoutAsync(IHost host)
+    {
+        var sessionStore = host.Services.GetRequiredService<IAdminSessionStore>();
+        await sessionStore.ClearAsync();
+        Console.WriteLine("Session cleared.");
+        return AdminExitCodes.Success;
+    }
+
     private static async Task<int> RunAccountsListAsync(IHost host)
     {
         try
@@ -113,12 +128,18 @@ public static class AdminCommandRoot
     private static async Task<int> RunAccountsAddAsync(
         IHost host,
         string email,
-        string firstName,
-        string lastName,
+        string? firstName,
+        string? lastName,
         string? password)
     {
         try
         {
+            if (string.IsNullOrWhiteSpace(firstName) || string.IsNullOrWhiteSpace(lastName))
+            {
+                throw new ArgumentException(
+                    "Both --first-name and --last-name are required. Example: accounts add user@example.com --first-name Jane --last-name Doe --password Secret1");
+            }
+
             password = RequireValue(password, "Password", secret: true);
 
             using var scope = host.Services.CreateScope();
@@ -203,10 +224,23 @@ public static class AdminCommandRoot
         {
             UnauthorizedException => "Invalid credentials.",
             BadRequestException bad => bad.Message,
+            DbUpdateException db when db.InnerException?.Message.Contains("FirstName", StringComparison.OrdinalIgnoreCase) == true
+                => "First name is required. Use --first-name.",
+            DbUpdateException db when db.InnerException?.Message.Contains("LastName", StringComparison.OrdinalIgnoreCase) == true
+                => "Last name is required. Use --last-name.",
+            DbUpdateException db => db.InnerException?.Message ?? db.Message,
             _ => ex.Message
         };
 
-        Console.Error.WriteLine(message);
+        if (ex is AdminSessionRequiredException)
+        {
+            Console.WriteLine(message);
+        }
+        else
+        {
+            Console.Error.WriteLine(message);
+        }
+
         return AdminExitCodes.FromException(ex);
     }
 }
