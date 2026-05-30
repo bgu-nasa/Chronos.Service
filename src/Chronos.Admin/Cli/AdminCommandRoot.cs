@@ -1,10 +1,12 @@
 using System.CommandLine;
 using System.CommandLine.Invocation;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Chronos.Admin.Auth.Contracts;
 using Chronos.Admin.Auth.Services;
 using Chronos.Admin.Auth.Session;
 using Chronos.Admin.Cli.Output;
+using Chronos.Admin.Organizations;
 using Chronos.Shared.Exceptions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -63,9 +65,39 @@ public static class AdminCommandRoot
         accountsCommand.AddCommand(accountsListCommand);
         accountsCommand.AddCommand(accountsAddCommand);
 
+        var jsonOption = new Option<bool>("--json", "Write JSON to stdout.");
+        var includeDeletedOption = new Option<bool>("--include-deleted", "Include soft-deleted organizations.");
+
+        var orgsCommand = new Command("orgs", "Cross-tenant organization views (PostgreSQL).");
+
+        var orgsListCommand = new Command("list", "List all organizations.");
+        orgsListCommand.AddOption(jsonOption);
+        orgsListCommand.AddOption(includeDeletedOption);
+        orgsListCommand.SetHandler(async (InvocationContext context) =>
+        {
+            var json = context.ParseResult.GetValueForOption(jsonOption);
+            var includeDeleted = context.ParseResult.GetValueForOption(includeDeletedOption);
+            context.ExitCode = await RunOrgsListAsync(host, json, includeDeleted);
+        });
+
+        var orgsShowCommand = new Command("show", "Show one organization.");
+        var orgIdArgument = new Argument<string>("organization-id", "Organization GUID.");
+        orgsShowCommand.AddArgument(orgIdArgument);
+        orgsShowCommand.AddOption(jsonOption);
+        orgsShowCommand.SetHandler(async (InvocationContext context) =>
+        {
+            var orgId = context.ParseResult.GetValueForArgument(orgIdArgument);
+            var json = context.ParseResult.GetValueForOption(jsonOption);
+            context.ExitCode = await RunOrgsShowAsync(host, orgId, json);
+        });
+
+        orgsCommand.AddCommand(orgsListCommand);
+        orgsCommand.AddCommand(orgsShowCommand);
+
         root.AddCommand(loginCommand);
         root.AddCommand(logoutCommand);
         root.AddCommand(accountsCommand);
+        root.AddCommand(orgsCommand);
 
         return root;
     }
@@ -161,6 +193,89 @@ public static class AdminCommandRoot
             return WriteError(ex);
         }
     }
+
+    private static async Task<int> RunOrgsListAsync(IHost host, bool json, bool includeDeleted)
+    {
+        try
+        {
+            using var scope = host.Services.CreateScope();
+            await scope.ServiceProvider.GetRequiredService<IAdminSessionGuard>().RequireValidSessionAsync();
+
+            if (!TryGetOrgService(scope.ServiceProvider, out var orgService))
+            {
+                return AdminExitCodes.GeneralError;
+            }
+
+            var organizations = await orgService!.ListOrganizationsAsync(includeDeleted);
+
+            if (json)
+            {
+                Console.WriteLine(JsonSerializer.Serialize(organizations, JsonOptions));
+            }
+            else
+            {
+                AdminOrganizationTableWriter.Write(organizations);
+            }
+
+            return AdminExitCodes.Success;
+        }
+        catch (Exception ex)
+        {
+            return WriteError(ex);
+        }
+    }
+
+    private static async Task<int> RunOrgsShowAsync(IHost host, string organizationId, bool json)
+    {
+        try
+        {
+            if (!Guid.TryParse(organizationId, out var orgGuid))
+            {
+                throw new ArgumentException("organization-id must be a valid GUID.");
+            }
+
+            using var scope = host.Services.CreateScope();
+            await scope.ServiceProvider.GetRequiredService<IAdminSessionGuard>().RequireValidSessionAsync();
+
+            if (!TryGetOrgService(scope.ServiceProvider, out var orgService))
+            {
+                return AdminExitCodes.GeneralError;
+            }
+
+            var organization = await orgService!.GetOrganizationAsync(orgGuid);
+
+            if (json)
+            {
+                Console.WriteLine(JsonSerializer.Serialize(organization, JsonOptions));
+            }
+            else
+            {
+                AdminOrganizationTableWriter.Write([organization]);
+            }
+
+            return AdminExitCodes.Success;
+        }
+        catch (Exception ex)
+        {
+            return WriteError(ex);
+        }
+    }
+
+    private static bool TryGetOrgService(
+        IServiceProvider services,
+        out IAdminOrganizationService? orgService)
+    {
+        orgService = services.GetService<IAdminOrganizationService>();
+        if (orgService is not null)
+        {
+            return true;
+        }
+
+        Console.Error.WriteLine(AdminOrganizationModuleExtensions.GetMissingConnectionMessage());
+        return false;
+    }
+
+    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
     private static string RequireValue(string? value, string prompt, bool secret = false)
     {

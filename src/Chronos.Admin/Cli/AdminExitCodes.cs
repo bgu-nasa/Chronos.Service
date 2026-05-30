@@ -9,6 +9,7 @@ public static class AdminExitCodes
     public const int GeneralError = 1;
     public const int AuthenticationRequired = 2;
     public const int InvalidArguments = 3;
+    public const int NotFound = 4;
 
     public static int FromException(Exception ex) =>
         ex switch
@@ -17,6 +18,7 @@ public static class AdminExitCodes
             UnauthorizedException => GeneralError,
             BadRequestException => InvalidArguments,
             ArgumentException => InvalidArguments,
+            NotFoundException => NotFound,
             _ => GeneralError
         };
 }
