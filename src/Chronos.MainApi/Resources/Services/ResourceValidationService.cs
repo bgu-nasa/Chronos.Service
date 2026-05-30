@@ -89,9 +89,9 @@ public class ResourceValidationService(
     {
         var resourceAttributeAssignment = await resourceAttributeAssignmentRepository.GetByIdAsync(resourceId, resourceAttributeId);
 
-        if (resourceAttributeAssignment == null)
+        if (resourceAttributeAssignment == null || resourceAttributeAssignment.OrganizationId != organizationId)
         {
-            logger.LogWarning("Resource attribute assignment not found. ResourceId: {ResourceId}, ResourceAttributeId: {ResourceAttributeId}", resourceId, resourceAttributeId);
+            logger.LogWarning("Resource attribute assignment not found or does not belong to organization. ResourceId: {ResourceId}, ResourceAttributeId: {ResourceAttributeId}, OrganizationId: {OrganizationId}", resourceId, resourceAttributeId, organizationId);
             throw new NotFoundException("Resource attribute assignment not found");
         }
 
