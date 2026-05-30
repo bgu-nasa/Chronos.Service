@@ -127,17 +127,38 @@ public class ResourceValidationServiceTests
     }
 
     [Test]
-    public async Task GivenValidAssignment_WhenValidateAndGetAssignment_ThenReturnsWithoutOrgCheck()
+    public async Task GivenAssignmentInSameOrg_WhenValidateAndGetAssignment_ThenReturnsAssignment()
     {
-        // Documents that assignment validation does NOT check organizationId
+        var orgId = Guid.NewGuid();
         var resourceId = Guid.NewGuid();
         var attrId = Guid.NewGuid();
-        var assignment = new ResourceAttributeAssignment { ResourceId = resourceId, ResourceAttributeId = attrId };
+        var assignment = new ResourceAttributeAssignment
+        {
+            ResourceId = resourceId,
+            ResourceAttributeId = attrId,
+            OrganizationId = orgId
+        };
         _resourceAttributeAssignmentRepository.GetByIdAsync(resourceId, attrId).Returns(assignment);
 
-        var result = await _service.ValidateAndGetResourceAttributeAssignmentAsync(
-            Guid.NewGuid(), resourceId, attrId);
+        var result = await _service.ValidateAndGetResourceAttributeAssignmentAsync(orgId, resourceId, attrId);
 
         Assert.That(result, Is.EqualTo(assignment));
+    }
+
+    [Test]
+    public void GivenAssignmentInDifferentOrg_WhenValidateAndGetAssignment_ThenThrowsNotFound()
+    {
+        var resourceId = Guid.NewGuid();
+        var attrId = Guid.NewGuid();
+        var assignment = new ResourceAttributeAssignment
+        {
+            ResourceId = resourceId,
+            ResourceAttributeId = attrId,
+            OrganizationId = Guid.NewGuid()
+        };
+        _resourceAttributeAssignmentRepository.GetByIdAsync(resourceId, attrId).Returns(assignment);
+
+        Assert.ThrowsAsync<NotFoundException>(() =>
+            _service.ValidateAndGetResourceAttributeAssignmentAsync(Guid.NewGuid(), resourceId, attrId));
     }
 }
