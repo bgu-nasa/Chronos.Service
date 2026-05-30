@@ -7,7 +7,7 @@ using Chronos.Tests.Acceptance.Infrastructure;
 using FluentAssertions;
 using NSubstitute;
 
-namespace Chronos.Tests.Acceptance.Flows;
+namespace Chronos.Tests.Acceptance.Flows.Scheduling;
 
 /// <summary>
 /// End-to-end tests that exercise the full scheduling pipeline:

@@ -1,7 +1,8 @@
 using System.Net;
 using Chronos.Domain.Management.Roles;
+using Chronos.Tests.Acceptance.Infrastructure;
 
-namespace Chronos.Tests.Acceptance.Infrastructure;
+namespace Chronos.Tests.Acceptance.Flows.Health;
 
 [TestFixture]
 [Category("Acceptance")]

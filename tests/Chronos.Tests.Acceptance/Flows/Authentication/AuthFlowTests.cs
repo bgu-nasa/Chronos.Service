@@ -4,7 +4,7 @@ using Chronos.MainApi.Auth.Contracts;
 using Chronos.Tests.Acceptance.Infrastructure;
 using FluentAssertions;
 
-namespace Chronos.Tests.Acceptance.Flows;
+namespace Chronos.Tests.Acceptance.Flows.Authentication;
 
 [TestFixture]
 [Category("Acceptance")]

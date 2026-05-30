@@ -8,7 +8,7 @@ using Chronos.MainApi.Schedule.Contracts;
 using Chronos.Tests.Acceptance.Infrastructure;
 using FluentAssertions;
 
-namespace Chronos.Tests.Acceptance.Flows;
+namespace Chronos.Tests.Acceptance.Flows.Authorization;
 
 [TestFixture]
 [Category("Acceptance")]
