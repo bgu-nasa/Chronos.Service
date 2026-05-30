@@ -2,13 +2,16 @@ namespace Chronos.Domain.Management.Roles;
 
 public static class RoleResolver
 {
+    /// <summary>
+    /// If you have the key, then you have everything in the value.
+    /// </summary>
     private static readonly Dictionary<Role, List<Role>> RoleMaps = new()
     {
-        { Role.Administrator, [Role.Administrator] },
-        { Role.UserManager, [Role.UserManager, Role.Administrator] },
-        { Role.ResourceManager, [Role.ResourceManager, Role.Administrator] },
-        { Role.Operator, [Role.Operator, Role.ResourceManager, Role.Administrator] },
-        { Role.Viewer, [/* Should never reach here */] }
+        { Role.Administrator, [Role.Administrator, Role.UserManager, Role.ResourceManager, Role.Operator, Role.Viewer] },
+        { Role.UserManager, [Role.UserManager, Role.Viewer] },
+        { Role.ResourceManager, [Role.ResourceManager, Role.Operator, Role.Viewer] },
+        { Role.Operator, [Role.Operator, Role.ResourceManager, Role.Administrator, Role.Viewer] },
+        { Role.Viewer, [Role.Viewer] }
     };
 
     /// <summary>
@@ -19,11 +22,11 @@ public static class RoleResolver
     /// <returns>true if the given role satisfies the required role, false otherwise.</returns>
     public static bool RoleIncludes(this Role givenRole, Role requiredRole)
     {
-        if (requiredRole == Role.Viewer)
+        if (requiredRole == Role.Viewer || requiredRole == givenRole)
         {
             return true;
         }
 
-        return RoleMaps.TryGetValue(requiredRole, out var includedRoles) && includedRoles.Contains(requiredRole);
+        return RoleMaps.TryGetValue(givenRole, out var includedRoles) && includedRoles.Contains(requiredRole);
     }
 }
