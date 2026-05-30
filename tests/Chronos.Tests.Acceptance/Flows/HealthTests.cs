@@ -1,12 +1,12 @@
 using System.Net;
 using Chronos.Domain.Management.Roles;
-using Chronos.Tests.System.Infrastructure;
+using Chronos.Tests.Acceptance.Infrastructure;
 using FluentAssertions;
 
-namespace Chronos.Tests.System.Flows;
+namespace Chronos.Tests.Acceptance.Flows;
 
 [TestFixture]
-[Category("E2E")]
+[Category("Acceptance")]
 public class HealthTests
 {
     private ChronosApiFactory _factory = null!;

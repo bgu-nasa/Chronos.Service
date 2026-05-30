@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 
-namespace Chronos.Tests.System.Infrastructure;
+namespace Chronos.Tests.Acceptance.Infrastructure;
 
 /// <summary>
 /// Custom WebApplicationFactory that replaces external dependencies

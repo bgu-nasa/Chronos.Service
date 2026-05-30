@@ -5,13 +5,13 @@ using Chronos.Domain.Management.Roles;
 using Chronos.Domain.Resources;
 using Chronos.MainApi.Resources.Contracts;
 using Chronos.MainApi.Schedule.Contracts;
-using Chronos.Tests.System.Infrastructure;
+using Chronos.Tests.Acceptance.Infrastructure;
 using FluentAssertions;
 
-namespace Chronos.Tests.System.Flows;
+namespace Chronos.Tests.Acceptance.Flows;
 
 [TestFixture]
-[Category("E2E")]
+[Category("Acceptance")]
 public class RbacEnforcementTests
 {
     private ChronosApiFactory _factory = null!;
