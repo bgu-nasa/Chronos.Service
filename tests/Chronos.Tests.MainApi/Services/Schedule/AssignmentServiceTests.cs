@@ -122,7 +122,7 @@ public class AssignmentServiceTests
 
         SetupValidAssignment(organizationId, slotId, resourceId, activityId, subjectId, schedulingPeriodId);
 
-        var result = await _service.CreateAssignmentAsync(organizationId, slotId, resourceId, activityId);
+        var result = await _service.CreateAssignmentAsync(organizationId, slotId, resourceId, activityId, 1);
 
         Assert.That(result, Is.Not.EqualTo(Guid.Empty));
         await _assignmentRepository.Received(1).AddAsync(Arg.Is<Assignment>(a =>
@@ -144,7 +144,7 @@ public class AssignmentServiceTests
         _resourceService.GetResourceAsync(organizationId, resourceId).ReturnsNull();
 
         var ex = Assert.ThrowsAsync<NotFoundException>(async () =>
-            await _service.CreateAssignmentAsync(organizationId, slotId, resourceId, activityId));
+            await _service.CreateAssignmentAsync(organizationId, slotId, resourceId, activityId, 1));
 
         Assert.That(ex!.Message, Does.Contain("Resource"));
     }
@@ -172,7 +172,7 @@ public class AssignmentServiceTests
         _activityService.GetActivityAsync(organizationId, activityId).ReturnsNull();
 
         var ex = Assert.ThrowsAsync<NotFoundException>(async () =>
-            await _service.CreateAssignmentAsync(organizationId, slotId, resourceId, activityId));
+            await _service.CreateAssignmentAsync(organizationId, slotId, resourceId, activityId, 1));
 
         Assert.That(ex!.Message, Does.Contain("Activity"));
     }
@@ -191,7 +191,7 @@ public class AssignmentServiceTests
             resourceCapacity: 20, expectedStudents: 50);
 
         var ex = Assert.ThrowsAsync<BadRequestException>(async () =>
-            await _service.CreateAssignmentAsync(organizationId, slotId, resourceId, activityId));
+            await _service.CreateAssignmentAsync(organizationId, slotId, resourceId, activityId, 1));
 
         Assert.That(ex!.Message, Does.Contain("capacity"));
     }
@@ -264,7 +264,7 @@ public class AssignmentServiceTests
         _slotService.GetSlotAsync(organizationId, slotId).Returns(slot);
 
         var ex = Assert.ThrowsAsync<BadRequestException>(async () =>
-            await _service.CreateAssignmentAsync(organizationId, slotId, resourceId, activityId));
+            await _service.CreateAssignmentAsync(organizationId, slotId, resourceId, activityId, 1));
 
         Assert.That(ex!.Message, Does.Contain("scheduling period"));
     }
@@ -305,7 +305,7 @@ public class AssignmentServiceTests
         _slotService.GetSlotAsync(organizationId, existingSlotId).Returns(existingSlot);
 
         var ex = Assert.ThrowsAsync<BadRequestException>(async () =>
-            await _service.CreateAssignmentAsync(organizationId, slotId, resourceId, activityId));
+            await _service.CreateAssignmentAsync(organizationId, slotId, resourceId, activityId, 1));
 
         Assert.That(ex!.Message, Does.Contain("overlaps"));
     }
@@ -345,7 +345,7 @@ public class AssignmentServiceTests
         _assignmentRepository.GetByResourceIdAsync(resourceId).Returns(new List<Assignment> { existingAssignment });
         _slotService.GetSlotAsync(organizationId, existingSlotId).Returns(existingSlot);
 
-        var result = await _service.CreateAssignmentAsync(organizationId, slotId, resourceId, activityId);
+        var result = await _service.CreateAssignmentAsync(organizationId, slotId, resourceId, activityId, 1);
 
         Assert.That(result, Is.Not.EqualTo(Guid.Empty));
     }
@@ -363,7 +363,7 @@ public class AssignmentServiceTests
         SetupValidAssignment(organizationId, slotId, resourceId, activityId, subjectId, schedulingPeriodId,
             resourceCapacity: 50, expectedStudents: null);
 
-        var result = await _service.CreateAssignmentAsync(organizationId, slotId, resourceId, activityId);
+        var result = await _service.CreateAssignmentAsync(organizationId, slotId, resourceId, activityId, 1);
 
         Assert.That(result, Is.Not.EqualTo(Guid.Empty));
     }
@@ -621,7 +621,7 @@ public class AssignmentServiceTests
         _assignmentRepository.GetByIdAsync(assignmentId).Returns(assignment);
         SetupValidAssignment(organizationId, slotId, resourceId, activityId, subjectId, schedulingPeriodId);
 
-        await _service.UpdateAssignmentAsync(organizationId, assignmentId, slotId, resourceId, activityId);
+        await _service.UpdateAssignmentAsync(organizationId, assignmentId, slotId, resourceId, activityId, 1);
 
         await _assignmentRepository.Received(1).UpdateAsync(Arg.Is<Assignment>(a =>
             a.SlotId == slotId &&
@@ -638,7 +638,7 @@ public class AssignmentServiceTests
         _assignmentRepository.GetByIdAsync(assignmentId).ReturnsNull();
 
         var ex = Assert.ThrowsAsync<NotFoundException>(async () =>
-            await _service.UpdateAssignmentAsync(organizationId, assignmentId, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid()));
+            await _service.UpdateAssignmentAsync(organizationId, assignmentId, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), 1));
 
         Assert.That(ex!.Message, Does.Contain("not found"));
     }
@@ -667,7 +667,7 @@ public class AssignmentServiceTests
         SetupValidAssignment(organizationId, slotId, resourceId, activityId, subjectId, schedulingPeriodId);
         _assignmentRepository.GetByResourceIdAsync(resourceId).Returns(new List<Assignment> { assignment });
 
-        await _service.UpdateAssignmentAsync(organizationId, assignmentId, slotId, resourceId, activityId);
+        await _service.UpdateAssignmentAsync(organizationId, assignmentId, slotId, resourceId, activityId, 1);
 
         await _assignmentRepository.Received(1).UpdateAsync(Arg.Any<Assignment>());
     }
