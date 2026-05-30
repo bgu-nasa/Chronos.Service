@@ -3,7 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Chronos.Tests.System.Infrastructure;
+namespace Chronos.Tests.Acceptance.Infrastructure;
 
 /// <summary>
 /// Extension methods for HttpClient to simplify E2E test code.

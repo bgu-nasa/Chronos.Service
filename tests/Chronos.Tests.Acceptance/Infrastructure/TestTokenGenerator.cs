@@ -5,7 +5,7 @@ using System.Text.Json;
 using Chronos.Domain.Management.Roles;
 using Microsoft.IdentityModel.Tokens;
 
-namespace Chronos.Tests.System.Infrastructure;
+namespace Chronos.Tests.Acceptance.Infrastructure;
 
 /// <summary>
 /// Role descriptor for token generation, matching the app's SimpleRoleAssignment shape.

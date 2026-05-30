@@ -1,10 +1,10 @@
 using System.Net;
 using Chronos.Domain.Management.Roles;
 
-namespace Chronos.Tests.System.Infrastructure;
+namespace Chronos.Tests.Acceptance.Infrastructure;
 
 [TestFixture]
-[Category("E2E")]
+[Category("Acceptance")]
 public class SmokeTests
 {
     private ChronosApiFactory _factory = null!;

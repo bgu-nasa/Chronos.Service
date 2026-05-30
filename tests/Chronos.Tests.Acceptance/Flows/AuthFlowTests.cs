@@ -1,13 +1,13 @@
 using System.Net;
 using System.Net.Http.Json;
 using Chronos.MainApi.Auth.Contracts;
-using Chronos.Tests.System.Infrastructure;
+using Chronos.Tests.Acceptance.Infrastructure;
 using FluentAssertions;
 
-namespace Chronos.Tests.System.Flows;
+namespace Chronos.Tests.Acceptance.Flows;
 
 [TestFixture]
-[Category("E2E")]
+[Category("Acceptance")]
 public class AuthFlowTests
 {
     private const string ValidInviteCode = "hih";

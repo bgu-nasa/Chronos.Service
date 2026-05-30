@@ -3,18 +3,18 @@ using Chronos.MainApi.Auth.Contracts;
 using Chronos.MainApi.Management.Contracts;
 using Chronos.MainApi.Resources.Contracts;
 using Chronos.MainApi.Schedule.Contracts;
-using Chronos.Tests.System.Infrastructure;
+using Chronos.Tests.Acceptance.Infrastructure;
 using FluentAssertions;
 using NSubstitute;
 
-namespace Chronos.Tests.System.Flows;
+namespace Chronos.Tests.Acceptance.Flows;
 
 /// <summary>
 /// End-to-end tests that exercise the full scheduling pipeline:
 /// register → create org structure → define resources → create schedule → trigger batch.
 /// </summary>
 [TestFixture]
-[Category("E2E")]
+[Category("Acceptance")]
 public class SchedulingPipelineTests
 {
     private const string ValidInviteCode = "hih";
