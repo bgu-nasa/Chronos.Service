@@ -6,54 +6,27 @@ namespace Chronos.Tests.Shared;
 [Category("Unit")]
 public class RoleResolverTests
 {
-    [Test]
-    public void GivenAnyRole_WhenViewerRequired_ThenAlwaysGranted()
+    [TestCase(Role.Administrator, Role.Administrator, true)]
+    [TestCase(Role.Administrator, Role.UserManager, true)]
+    [TestCase(Role.Administrator, Role.ResourceManager, true)]
+    [TestCase(Role.Administrator, Role.Operator, true)]
+    [TestCase(Role.Administrator, Role.Viewer, true)]
+    [TestCase(Role.UserManager, Role.UserManager, true)]
+    [TestCase(Role.UserManager, Role.Viewer, true)]
+    [TestCase(Role.UserManager, Role.Operator, false)]
+    [TestCase(Role.ResourceManager, Role.ResourceManager, true)]
+    [TestCase(Role.ResourceManager, Role.Operator, true)]
+    [TestCase(Role.ResourceManager, Role.Viewer, true)]
+    [TestCase(Role.ResourceManager, Role.UserManager, false)]
+    [TestCase(Role.Operator, Role.Operator, true)]
+    [TestCase(Role.Operator, Role.ResourceManager, true)]
+    [TestCase(Role.Operator, Role.Administrator, true)]
+    [TestCase(Role.Operator, Role.Viewer, true)]
+    [TestCase(Role.Operator, Role.UserManager, false)]
+    [TestCase(Role.Viewer, Role.Viewer, true)]
+    [TestCase(Role.Viewer, Role.Operator, false)]
+    public void RoleIncludes_ReturnsExpectedResult(Role givenRole, Role requiredRole, bool expected)
     {
-        Assert.Multiple(() =>
-        {
-            Assert.That(Role.Viewer.RoleIncludes(Role.Viewer), Is.True);
-            Assert.That(Role.Operator.RoleIncludes(Role.Viewer), Is.True);
-            Assert.That(Role.Administrator.RoleIncludes(Role.Viewer), Is.True);
-        });
-    }
-
-    [Test]
-    public void GivenAdministrator_WhenAdministratorRequired_ThenGranted()
-    {
-        Assert.That(Role.Administrator.RoleIncludes(Role.Administrator), Is.True);
-    }
-
-    [Test]
-    public void GivenAdministrator_WhenUserManagerRequired_ThenGranted()
-    {
-        Assert.That(Role.Administrator.RoleIncludes(Role.UserManager), Is.True);
-    }
-
-    [Test]
-    public void GivenAdministrator_WhenResourceManagerRequired_ThenGranted()
-    {
-        Assert.That(Role.Administrator.RoleIncludes(Role.ResourceManager), Is.True);
-    }
-
-    [Test]
-    public void GivenAdministrator_WhenOperatorRequired_ThenGranted()
-    {
-        Assert.That(Role.Administrator.RoleIncludes(Role.Operator), Is.True);
-    }
-
-    // BUG: RoleIncludes checks includedRoles.Contains(requiredRole) instead of
-    // includedRoles.Contains(givenRole), so it always grants non-Viewer roles
-    // regardless of the caller's actual role. These tests document the current
-    // (broken) behavior to avoid silent regressions if the bug is fixed.
-    [Test]
-    public void GivenOperator_WhenAdministratorRequired_ThenGrantedDueToBug()
-    {
-        Assert.That(Role.Operator.RoleIncludes(Role.Administrator), Is.True);
-    }
-
-    [Test]
-    public void GivenViewer_WhenOperatorRequired_ThenGrantedDueToBug()
-    {
-        Assert.That(Role.Viewer.RoleIncludes(Role.Operator), Is.True);
+        Assert.That(givenRole.RoleIncludes(requiredRole), Is.EqualTo(expected));
     }
 }
