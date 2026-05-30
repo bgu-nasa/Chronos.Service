@@ -3,7 +3,7 @@ using Chronos.Tests.Acceptance.Infrastructure;
 using Chronos.Tests.Acceptance.Support;
 using FluentAssertions;
 
-namespace Chronos.Tests.Acceptance.Features.OrganizationOnboarding;
+namespace Chronos.Tests.Acceptance.Flows.OrganizationManagement;
 
 /// <summary>
 /// Acceptance coverage for the organization-onboarding feature: an administrator
