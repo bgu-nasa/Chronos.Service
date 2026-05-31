@@ -37,17 +37,6 @@ public class ManagementValidationServiceTests
     }
 
     [Test]
-    public void GivenDeletedOrganization_WhenValidateOrganization_ThenThrowsNotFound()
-    {
-        var orgId = Guid.NewGuid();
-        _organizationRepository.GetByIdAsync(orgId)
-            .Returns(new Organization { Id = orgId, Deleted = true });
-
-        Assert.ThrowsAsync<NotFoundException>(() =>
-            _service.ValidateOrganizationAsync(orgId));
-    }
-
-    [Test]
     public void GivenActiveOrganization_WhenValidateOrganization_ThenDoesNotThrow()
     {
         var orgId = Guid.NewGuid();

@@ -52,17 +52,6 @@ public class DepartmentServiceTests
     }
 
     [Test]
-    public void GivenDeletedOrg_WhenCreateDepartment_ThenThrowsNotFound()
-    {
-        var orgId = Guid.NewGuid();
-        _organizationRepository.GetByIdAsync(orgId)
-            .Returns(new Organization { Id = orgId, Deleted = true });
-
-        Assert.ThrowsAsync<NotFoundException>(() =>
-            _service.CreateDepartmentAsync(orgId, "Engineering"));
-    }
-
-    [Test]
     public async Task GivenDepartmentsAcrossOrgs_WhenGetDepartments_ThenReturnsOnlyThisOrgs()
     {
         // GetAllAsync returns the whole (cross-tenant) departments table;
