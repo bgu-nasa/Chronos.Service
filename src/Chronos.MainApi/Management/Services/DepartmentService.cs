@@ -45,9 +45,9 @@ public class DepartmentService(
         await validationService.ValidateOrganizationAsync(organizationId);
 
         var allDepartments = await departmentRepository.GetAllAsync();
-        var filteredDepartments = allDepartments;
-            // .Where(d => d.OrganizationId == organizationId && !d.Deleted)
-            // .ToList();
+        var filteredDepartments = allDepartments
+            .Where(d => d.OrganizationId == organizationId && !d.Deleted)
+            .ToList();
 
         logger.LogDebug("Retrieved {Count} departments for organization. OrganizationId: {OrganizationId}", filteredDepartments.Count, organizationId);
         return filteredDepartments;
