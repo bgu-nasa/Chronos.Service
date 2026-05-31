@@ -13,10 +13,15 @@ public class ManagementValidationService(
     {
         var organization = await organizationRepository.GetByIdAsync(organizationId);
         
-        if (organization == null || organization.Deleted)
+        if (organization == null)
         {
-            logger.LogWarning("Organization not found or deleted. OrganizationId: {OrganizationId}", organizationId);
+            logger.LogInformation("Organization not found. OrganizationId: {OrganizationId}", organizationId);
             throw new NotFoundException("Organization not found");
+        }
+
+        if (organization.Deleted)
+        {
+            logger.LogInformation("Soft deleted organization retrieved. OrganizationId: {OrganizationId}", organizationId);
         }
     }
 

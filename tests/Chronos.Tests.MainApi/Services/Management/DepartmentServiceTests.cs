@@ -52,17 +52,6 @@ public class DepartmentServiceTests
     }
 
     [Test]
-    public void GivenDeletedOrg_WhenCreateDepartment_ThenThrowsNotFound()
-    {
-        var orgId = Guid.NewGuid();
-        _organizationRepository.GetByIdAsync(orgId)
-            .Returns(new Organization { Id = orgId, Deleted = true });
-
-        Assert.ThrowsAsync<NotFoundException>(() =>
-            _service.CreateDepartmentAsync(orgId, "Engineering"));
-    }
-
-    [Test]
     public async Task GivenAllDepartments_WhenGetDepartments_ThenReturnsUnfilteredList()
     {
         // This test documents the current bug: GetDepartmentsAsync returns
