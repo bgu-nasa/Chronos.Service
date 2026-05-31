@@ -433,9 +433,9 @@ public class UserPreferenceServiceTests
     public async Task UpdateUserPreferenceAsync_WithValidData_UpdatesPreference()
     {
         var organizationId = Guid.NewGuid();
+        var preferenceId = Guid.NewGuid();
         var userId = Guid.NewGuid();
         var schedulingPeriodId = Guid.NewGuid();
-        var preferenceId = Guid.NewGuid();
         var preference = new UserPreference
         {
             Id = preferenceId,
@@ -446,12 +446,12 @@ public class UserPreferenceServiceTests
             Value = "old_value"
         };
 
-        _validationService.ValidateOrganizationAsync(organizationId).Returns(Task.CompletedTask);
-        _userPreferenceRepository.GetByUserPeriodAsync(userId, schedulingPeriodId).Returns(new List<UserPreference> { preference });
+        _userPreferenceRepository.GetByIdAsync(preferenceId).Returns(preference);
+        _schedulingPeriodService.validateSchedulingPeriodAsync(organizationId, schedulingPeriodId).Returns(Task.CompletedTask);
 
         var newValue = "new_value";
 
-        await _service.UpdateUserPreferenceAsync(organizationId, userId, schedulingPeriodId, "key", newValue);
+        await _service.UpdateUserPreferenceAsync(organizationId, preferenceId, userId, schedulingPeriodId, "key", newValue);
 
         await _userPreferenceRepository.Received(1).UpdateAsync(Arg.Is<UserPreference>(p =>
             p.Value == newValue));
@@ -461,14 +461,14 @@ public class UserPreferenceServiceTests
     public void UpdateUserPreferenceAsync_WithNonExistentPreference_ThrowsKeyNotFoundException()
     {
         var organizationId = Guid.NewGuid();
+        var preferenceId = Guid.NewGuid();
         var userId = Guid.NewGuid();
         var schedulingPeriodId = Guid.NewGuid();
 
-        _validationService.ValidateOrganizationAsync(organizationId).Returns(Task.CompletedTask);
-        _userPreferenceRepository.GetByUserPeriodAsync(userId, schedulingPeriodId).Returns(new List<UserPreference>());
+        _userPreferenceRepository.GetByIdAsync(preferenceId).ReturnsNull();
 
         var ex = Assert.ThrowsAsync<KeyNotFoundException>(async () =>
-            await _service.UpdateUserPreferenceAsync(organizationId, userId, schedulingPeriodId, "key", "value"));
+            await _service.UpdateUserPreferenceAsync(organizationId, preferenceId, userId, schedulingPeriodId, "key", "value"));
 
         Assert.That(ex!.Message, Does.Contain("not found"));
     }
@@ -478,11 +478,12 @@ public class UserPreferenceServiceTests
     {
         var organizationId = Guid.NewGuid();
         var wrongOrgId = Guid.NewGuid();
+        var preferenceId = Guid.NewGuid();
         var userId = Guid.NewGuid();
         var schedulingPeriodId = Guid.NewGuid();
         var preference = new UserPreference
         {
-            Id = Guid.NewGuid(),
+            Id = preferenceId,
             OrganizationId = wrongOrgId,
             UserId = userId,
             SchedulingPeriodId = schedulingPeriodId,
@@ -490,11 +491,10 @@ public class UserPreferenceServiceTests
             Value = "value"
         };
 
-        _validationService.ValidateOrganizationAsync(organizationId).Returns(Task.CompletedTask);
-        _userPreferenceRepository.GetByUserPeriodAsync(userId, schedulingPeriodId).Returns(new List<UserPreference> { preference });
+        _userPreferenceRepository.GetByIdAsync(preferenceId).Returns(preference);
 
         var ex = Assert.ThrowsAsync<KeyNotFoundException>(async () =>
-            await _service.UpdateUserPreferenceAsync(organizationId, userId, schedulingPeriodId, "key", "new_value"));
+            await _service.UpdateUserPreferenceAsync(organizationId, preferenceId, userId, schedulingPeriodId, "key", "new_value"));
 
         Assert.That(ex!.Message, Does.Contain("not found"));
     }
