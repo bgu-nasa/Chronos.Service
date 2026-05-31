@@ -214,6 +214,8 @@ public class ConstraintController(
         await userConstraintService.UpdateUserConstraintAsync(
             organizationId,
             userConstraintId,
+            request.UserId,
+            request.SchedulingPeriodId,
             request.Key,
             request.Value,
             request.WeekNum);

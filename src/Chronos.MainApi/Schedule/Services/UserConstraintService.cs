@@ -115,10 +115,13 @@ public class UserConstraintService(
         return orgConstraints;
     }
     
-    public async Task UpdateUserConstraintAsync(Guid organizationId, Guid userConstraintId, string key, string value, int? weekNum = null)
+    public async Task UpdateUserConstraintAsync(Guid organizationId, Guid userConstraintId, Guid userId, Guid schedulingPeriodId, string key, string value, int? weekNum = null)
     {
         logger.LogInformation("Updating UserConstraint {UserConstraintId} for Organization {OrganizationId}", userConstraintId, organizationId);
+        await schedulingPeriodService.validateSchedulingPeriodAsync(organizationId, schedulingPeriodId);
         var constraint = await ValidateAndGetUserConstraintAsync(organizationId, userConstraintId);
+        constraint.UserId = userId;
+        constraint.SchedulingPeriodId = schedulingPeriodId;
         constraint.WeekNum = weekNum;
         constraint.Key = key;
         constraint.Value = value;
