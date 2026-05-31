@@ -52,24 +52,57 @@ public class DepartmentServiceTests
     }
 
     [Test]
-    public async Task GivenAllDepartments_WhenGetDepartments_ThenReturnsUnfilteredList()
+    public void GivenDeletedOrg_WhenCreateDepartment_ThenThrowsNotFound()
     {
-        // This test documents the current bug: GetDepartmentsAsync returns
-        // ALL departments because the .Where filter is commented out.
+        var orgId = Guid.NewGuid();
+        _organizationRepository.GetByIdAsync(orgId)
+            .Returns(new Organization { Id = orgId, Deleted = true });
+
+        Assert.ThrowsAsync<NotFoundException>(() =>
+            _service.CreateDepartmentAsync(orgId, "Engineering"));
+    }
+
+    [Test]
+    public async Task GivenDepartmentsAcrossOrgs_WhenGetDepartments_ThenReturnsOnlyThisOrgs()
+    {
+        // GetAllAsync returns the whole (cross-tenant) departments table;
+        // the service must return only the departments owned by the requested org.
         var orgId = Guid.NewGuid();
         var otherOrgId = Guid.NewGuid();
         SetupValidOrganization(orgId);
 
+        var ownA = new Department { Id = Guid.NewGuid(), OrganizationId = orgId, Deleted = false };
+        var ownB = new Department { Id = Guid.NewGuid(), OrganizationId = orgId, Deleted = false };
         _departmentRepository.GetAllAsync().Returns(new List<Department>
         {
-            new() { Id = Guid.NewGuid(), OrganizationId = orgId, Deleted = false },
+            ownA,
+            new() { Id = Guid.NewGuid(), OrganizationId = otherOrgId, Deleted = false },
+            ownB,
             new() { Id = Guid.NewGuid(), OrganizationId = otherOrgId, Deleted = false },
         });
 
         var result = await _service.GetDepartmentsAsync(orgId);
 
-        // BUG: returns 2 instead of 1 because org filter is commented out
-        Assert.That(result, Has.Count.EqualTo(2));
+        Assert.That(result.Select(d => d.Id), Is.EquivalentTo(new[] { ownA.Id, ownB.Id }));
+    }
+
+    [Test]
+    public async Task GivenDeletedDepartmentInOrg_WhenGetDepartments_ThenExcludesDeleted()
+    {
+        var orgId = Guid.NewGuid();
+        SetupValidOrganization(orgId);
+
+        var activeDept = new Department { Id = Guid.NewGuid(), OrganizationId = orgId, Deleted = false };
+        _departmentRepository.GetAllAsync().Returns(new List<Department>
+        {
+            activeDept,
+            new() { Id = Guid.NewGuid(), OrganizationId = orgId, Deleted = true },
+        });
+
+        var result = await _service.GetDepartmentsAsync(orgId);
+
+        Assert.That(result, Has.Count.EqualTo(1));
+        Assert.That(result[0].Id, Is.EqualTo(activeDept.Id));
     }
 
     [Test]

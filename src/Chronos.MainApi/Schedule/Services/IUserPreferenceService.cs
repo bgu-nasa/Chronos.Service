@@ -10,7 +10,7 @@ public interface IUserPreferenceService
     Task<List<UserPreference>> GetAllUserPreferencesBySchedulingPeriodIdAsync(Guid organizationId, Guid schedulingPeriodId);
     Task<List<UserPreference>> GetAllUserPreferencesByUserAndPeriodAsync(Guid organizationId,Guid userId, Guid schedulingPeriodId);
     
-    Task UpdateUserPreferenceAsync(Guid organizationId,Guid userId, Guid schedulingPeriodId, string key, string value);
+    Task UpdateUserPreferenceAsync(Guid organizationId, Guid preferenceId, Guid userId, Guid schedulingPeriodId, string key, string value);
     Task DeleteUserPreferenceAsync(Guid organizationId, Guid userPreferenceId);
     
 }

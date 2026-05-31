@@ -1,9 +1,10 @@
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Chronos.Tests.System.Infrastructure;
+namespace Chronos.Tests.Acceptance.Infrastructure;
 
 /// <summary>
 /// Extension methods for HttpClient to simplify E2E test code.
@@ -21,6 +22,11 @@ public static class HttpClientExtensions
     {
         client.DefaultRequestHeaders.Remove("x-org-id");
         client.DefaultRequestHeaders.Add("x-org-id", organizationId.ToString());
+    }
+
+    public static void UseBearerToken(this HttpClient client, string token)
+    {
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
     }
 
     public static async Task<HttpResponseMessage> PostJsonAsync<T>(

@@ -4,4 +4,4 @@ public record CreateAssignmentRequest(
     Guid SlotId,
     Guid ResourceId,
     Guid ActivityId,
-    int? WeekNum = null);
+    int WeekNum);

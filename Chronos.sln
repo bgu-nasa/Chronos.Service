@@ -24,7 +24,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Chronos.Offboarding", "src\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Chronos.Tests.Offboarding", "tests\Chronos.Tests.Offboarding\Chronos.Tests.Offboarding.csproj", "{902DD281-0E96-4E79-BF5E-A7E95C0E113A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Chronos.Tests.System", "tests\Chronos.Tests.System\Chronos.Tests.System.csproj", "{1D180453-AAAB-47D4-87FD-FCC4E1D20DC4}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Chronos.Tests.Acceptance", "tests\Chronos.Tests.Acceptance\Chronos.Tests.Acceptance.csproj", "{1D180453-AAAB-47D4-87FD-FCC4E1D20DC4}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
 EndProject

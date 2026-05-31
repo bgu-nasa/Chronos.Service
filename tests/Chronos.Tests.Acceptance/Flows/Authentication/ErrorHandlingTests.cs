@@ -1,17 +1,22 @@
 using System.Net;
 using Chronos.Domain.Management.Roles;
 using Chronos.MainApi.Auth.Contracts;
-using Chronos.Tests.System.Infrastructure;
+using Chronos.Tests.Acceptance.Infrastructure;
+using Chronos.Tests.Acceptance.Support;
 using FluentAssertions;
 
-namespace Chronos.Tests.System.Flows;
+namespace Chronos.Tests.Acceptance.Flows.Authentication;
 
+/// <summary>
+/// Covers the validation and error-path branches of the public surface — duplicate
+/// email, weak password, malformed email, missing org header, bad invite code, and
+/// 404s for unknown resources. Uses the raw factory rather than <see cref="AcceptanceContext"/>
+/// because most cases need to exercise the register flow directly with bad inputs.
+/// </summary>
 [TestFixture]
-[Category("E2E")]
+[Category("Acceptance")]
 public class ErrorHandlingTests
 {
-    private const string ValidInviteCode = "hih";
-
     private ChronosApiFactory _factory = null!;
 
     [OneTimeSetUp]
@@ -19,6 +24,13 @@ public class ErrorHandlingTests
 
     [OneTimeTearDown]
     public void OneTimeTearDown() => _factory.Dispose();
+
+    private static RegisterRequest Register(string email, string orgName, string? password = null, string? inviteCode = null) =>
+        new(
+            AdminUser: new CreateUserRequest(email, "Test", "User", password ?? TestConstants.DefaultPassword),
+            OrganizationName: orgName,
+            Plan: "free",
+            InviteCode: inviteCode ?? TestConstants.InviteCode);
 
     [Test]
     public async Task GivenNonexistentResourceId_WhenGetById_ThenReturns404()
@@ -38,20 +50,11 @@ public class ErrorHandlingTests
     {
         var client = _factory.CreateClient();
         var email = "duplicate@chronos.dev";
-        var request = new RegisterRequest(
-            AdminUser: new CreateUserRequest(email, "Dup", "User", "Passw0rd1"),
-            OrganizationName: "Dup Org",
-            Plan: "free",
-            InviteCode: ValidInviteCode);
 
-        await client.PostJsonAsync("/api/auth/register", request);
+        await client.PostJsonAsync("/api/auth/register", Register(email, "Dup Org"));
 
         var secondResponse = await client.PostJsonAsync("/api/auth/register",
-            new RegisterRequest(
-                AdminUser: new CreateUserRequest(email, "Dup", "Again", "Passw0rd2"),
-                OrganizationName: "Dup Org 2",
-                Plan: "free",
-                InviteCode: ValidInviteCode));
+            Register(email, "Dup Org 2"));
 
         secondResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         var body = await secondResponse.Content.ReadAsStringAsync();
@@ -62,13 +65,9 @@ public class ErrorHandlingTests
     public async Task GivenWeakPassword_WhenRegister_ThenReturns400WithValidationMessage()
     {
         var client = _factory.CreateClient();
-        var request = new RegisterRequest(
-            AdminUser: new CreateUserRequest("weak-pw@chronos.dev", "Weak", "Pw", "short"),
-            OrganizationName: "Weak Org",
-            Plan: "free",
-            InviteCode: ValidInviteCode);
 
-        var response = await client.PostJsonAsync("/api/auth/register", request);
+        var response = await client.PostJsonAsync("/api/auth/register",
+            Register("weak-pw@chronos.dev", "Weak Org", password: "short"));
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         var body = await response.Content.ReadAsStringAsync();
@@ -79,13 +78,9 @@ public class ErrorHandlingTests
     public async Task GivenInvalidEmail_WhenRegister_ThenReturns400()
     {
         var client = _factory.CreateClient();
-        var request = new RegisterRequest(
-            AdminUser: new CreateUserRequest("not-an-email", "Bad", "Email", "Passw0rd1"),
-            OrganizationName: "Bad Email Org",
-            Plan: "free",
-            InviteCode: ValidInviteCode);
 
-        var response = await client.PostJsonAsync("/api/auth/register", request);
+        var response = await client.PostJsonAsync("/api/auth/register",
+            Register("not-an-email", "Bad Email Org"));
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         var body = await response.Content.ReadAsStringAsync();
@@ -99,8 +94,7 @@ public class ErrorHandlingTests
         var token = TestTokenGenerator.GenerateToken(
             Guid.NewGuid(), "no-org@test.com", Guid.NewGuid(),
             new SimpleRoleForToken(Role.Administrator, Guid.NewGuid()));
-        client.DefaultRequestHeaders.Authorization =
-            new global::System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        client.UseBearerToken(token);
 
         var response = await client.GetAsync("/api/user");
 
@@ -113,13 +107,9 @@ public class ErrorHandlingTests
     public async Task GivenInvalidInviteCode_WhenRegister_ThenReturns401()
     {
         var client = _factory.CreateClient();
-        var request = new RegisterRequest(
-            AdminUser: new CreateUserRequest("bad-invite@chronos.dev", "Bad", "Invite", "Passw0rd1"),
-            OrganizationName: "Bad Invite Org",
-            Plan: "free",
-            InviteCode: "invalidcode");
 
-        var response = await client.PostJsonAsync("/api/auth/register", request);
+        var response = await client.PostJsonAsync("/api/auth/register",
+            Register("bad-invite@chronos.dev", "Bad Invite Org", inviteCode: "invalidcode"));
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
         var body = await response.Content.ReadAsStringAsync();
