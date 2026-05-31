@@ -1,6 +1,7 @@
 using System.Net;
 using Chronos.Domain.Management.Roles;
 using Chronos.Tests.Acceptance.Infrastructure;
+using FluentAssertions;
 
 namespace Chronos.Tests.Acceptance.Flows.Health;
 
@@ -23,7 +24,7 @@ public class SmokeTests
 
         var response = await client.GetAsync("/api/department/00000000-0000-0000-0000-000000000000/resources/subjects/Subject");
 
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Test]
@@ -37,7 +38,7 @@ public class SmokeTests
 
         var response = await client.GetAsync("/api/department/00000000-0000-0000-0000-000000000000/resources/subjects/Subject");
 
-        Assert.That(response.StatusCode, Is.Not.EqualTo(HttpStatusCode.Unauthorized));
+        response.StatusCode.Should().NotBe(HttpStatusCode.Unauthorized);
     }
 
     [Test]
@@ -46,8 +47,8 @@ public class SmokeTests
         var (scope, db) = _factory.GetDbContext();
         using (scope)
         {
-            Assert.That(db, Is.Not.Null);
-            Assert.That(db.Database.ProviderName, Does.Contain("InMemory"));
+            db.Should().NotBeNull();
+            db.Database.ProviderName.Should().Contain("InMemory");
         }
     }
 }

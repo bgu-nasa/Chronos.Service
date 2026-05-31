@@ -70,6 +70,32 @@ public sealed partial class Seeder
                ?? throw new InvalidOperationException("Create activity returned no body.");
     }
 
+    public async Task<ActivityResponse> CreateActivityWithPrerequisitesAsync(Guid organizationId)
+    {
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        var dept = await CreateDepartmentAsync($"Activity Dept {suffix}");
+        var period = await CreateSchedulingPeriodAsync(
+            $"Activity Period {suffix}",
+            new DateTime(2026, 9, 1),
+            new DateTime(2027, 1, 31));
+        var instructor = await CreateUserAsync($"activity-instructor-{suffix}@chronos.test");
+        var subject = await CreateSubjectAsync(
+            organizationId,
+            dept.Id,
+            Guid.Parse(period.Id),
+            $"ACT{suffix}",
+            $"Activity Subject {suffix}");
+
+        return await CreateActivityAsync(
+            organizationId,
+            dept.Id,
+            subject.Id,
+            Guid.Parse(instructor.UserId),
+            "Lecture",
+            expectedStudents: 25,
+            duration: 2);
+    }
+
     public async Task<AssignmentResponse> CreateAssignmentAsync(Guid slotId, Guid resourceId, Guid activityId, int weekNum)
     {
         var response = await client.PostJsonAsync("/api/schedule/scheduling/assignments",

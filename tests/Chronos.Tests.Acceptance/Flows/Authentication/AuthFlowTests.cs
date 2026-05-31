@@ -1,17 +1,21 @@
 using System.Net;
-using System.Net.Http.Json;
 using Chronos.MainApi.Auth.Contracts;
 using Chronos.Tests.Acceptance.Infrastructure;
+using Chronos.Tests.Acceptance.Support;
 using FluentAssertions;
 
 namespace Chronos.Tests.Acceptance.Flows.Authentication;
 
+/// <summary>
+/// Exercises the public auth flow (register, login, refresh) end-to-end against
+/// a fresh API instance. These tests deliberately avoid <see cref="AcceptanceContext"/>
+/// because <see cref="AcceptanceContext"/> itself depends on the register flow
+/// working; using the raw factory keeps the assertions on the flow under test.
+/// </summary>
 [TestFixture]
 [Category("Acceptance")]
 public class AuthFlowTests
 {
-    private const string ValidInviteCode = "hih";
-
     private ChronosApiFactory _factory = null!;
 
     [OneTimeSetUp]
@@ -20,17 +24,20 @@ public class AuthFlowTests
     [OneTimeTearDown]
     public void OneTimeTearDown() => _factory.Dispose();
 
+    private static RegisterRequest Register(string email, string orgName, string? password = null) =>
+        new(
+            AdminUser: new CreateUserRequest(email, "Test", "User", password ?? TestConstants.DefaultPassword),
+            OrganizationName: orgName,
+            Plan: "free",
+            InviteCode: TestConstants.InviteCode);
+
     [Test]
     public async Task GivenValidRegistration_WhenRegister_ThenReturnsJwtToken()
     {
         var client = _factory.CreateClient();
-        var request = new RegisterRequest(
-            AdminUser: new CreateUserRequest("reg-test@chronos.dev", "Admin", "User", "Passw0rd1"),
-            OrganizationName: "Auth Test Org",
-            Plan: "free",
-            InviteCode: ValidInviteCode);
 
-        var response = await client.PostJsonAsync("/api/auth/register", request);
+        var response = await client.PostJsonAsync("/api/auth/register",
+            Register("reg-test@chronos.dev", "Auth Test Org"));
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var auth = await response.ReadJsonAsync<AuthResponse>();
@@ -44,16 +51,11 @@ public class AuthFlowTests
     {
         var client = _factory.CreateClient();
         var email = "login-test@chronos.dev";
-        var password = "Passw0rd2";
 
-        await client.PostJsonAsync("/api/auth/register", new RegisterRequest(
-            AdminUser: new CreateUserRequest(email, "Login", "Tester", password),
-            OrganizationName: "Login Test Org",
-            Plan: "free",
-            InviteCode: ValidInviteCode));
+        await client.PostJsonAsync("/api/auth/register", Register(email, "Login Test Org"));
 
         var loginResponse = await client.PostJsonAsync("/api/auth/login",
-            new LoginRequest(email, password));
+            new LoginRequest(email, TestConstants.DefaultPassword));
 
         loginResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         var auth = await loginResponse.ReadJsonAsync<AuthResponse>();
@@ -66,11 +68,7 @@ public class AuthFlowTests
         var client = _factory.CreateClient();
         var email = "wrong-pw@chronos.dev";
 
-        await client.PostJsonAsync("/api/auth/register", new RegisterRequest(
-            AdminUser: new CreateUserRequest(email, "Wrong", "Pw", "Passw0rd3"),
-            OrganizationName: "WrongPw Org",
-            Plan: "free",
-            InviteCode: ValidInviteCode));
+        await client.PostJsonAsync("/api/auth/register", Register(email, "WrongPw Org"));
 
         var loginResponse = await client.PostJsonAsync("/api/auth/login",
             new LoginRequest(email, "TotallyWr0ng"));
@@ -82,17 +80,11 @@ public class AuthFlowTests
     public async Task GivenAuthenticatedUser_WhenRefreshToken_ThenReturnsNewToken()
     {
         var client = _factory.CreateClient();
-        var email = "refresh-test@chronos.dev";
 
-        var regResponse = await client.PostJsonAsync("/api/auth/register", new RegisterRequest(
-            AdminUser: new CreateUserRequest(email, "Refresh", "Tester", "Passw0rd4"),
-            OrganizationName: "Refresh Org",
-            Plan: "free",
-            InviteCode: ValidInviteCode));
-
+        var regResponse = await client.PostJsonAsync("/api/auth/register",
+            Register("refresh-test@chronos.dev", "Refresh Org"));
         var originalAuth = await regResponse.ReadJsonAsync<AuthResponse>();
-        client.DefaultRequestHeaders.Authorization =
-            new global::System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", originalAuth!.Token);
+        client.UseBearerToken(originalAuth!.Token);
 
         var refreshResponse = await client.PostAsync("/api/auth/refresh", null);
 
@@ -105,8 +97,7 @@ public class AuthFlowTests
     public async Task GivenInvalidToken_WhenAccessProtectedEndpoint_ThenReturns401()
     {
         var client = _factory.CreateClient();
-        client.DefaultRequestHeaders.Authorization =
-            new global::System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "invalid.jwt.token");
+        client.UseBearerToken("invalid.jwt.token");
 
         var response = await client.PostAsync("/api/auth/refresh", null);
 

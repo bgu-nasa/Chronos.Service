@@ -120,9 +120,8 @@ public class ChronosApiFactory : WebApplicationFactory<AuthConfiguration>
             TestSecretKey, TestIssuer, TestAudience);
 
         var client = CreateClient();
-        client.DefaultRequestHeaders.Authorization =
-            new global::System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-        client.DefaultRequestHeaders.Add("x-org-id", organizationId.ToString());
+        client.UseBearerToken(token);
+        client.SetOrgHeader(organizationId);
 
         return client;
     }

@@ -1,4 +1,3 @@
-using System.Net.Http.Headers;
 using Chronos.Domain.Management.Roles;
 using Chronos.MainApi.Auth.Contracts;
 using Chronos.MainApi.Management.Contracts;
@@ -20,6 +19,8 @@ public sealed class AcceptanceContext : IDisposable
     public Guid AdminUserId { get; }
     public string AdminEmail { get; }
 
+    private readonly bool _ownsFactory;
+
     /// <summary>Seeds domain data through the API as the organization administrator.</summary>
     public Seeder Seed { get; }
 
@@ -28,13 +29,15 @@ public sealed class AcceptanceContext : IDisposable
         HttpClient adminClient,
         Guid organizationId,
         Guid adminUserId,
-        string adminEmail)
+        string adminEmail,
+        bool ownsFactory)
     {
         Factory = factory;
         AdminClient = adminClient;
         OrganizationId = organizationId;
         AdminUserId = adminUserId;
         AdminEmail = adminEmail;
+        _ownsFactory = ownsFactory;
         Seed = new Seeder(adminClient);
     }
 
@@ -42,9 +45,28 @@ public sealed class AcceptanceContext : IDisposable
     /// Boots the API, registers a new organization + administrator, and returns a
     /// context whose <see cref="AdminClient"/> is authenticated and scoped to it.
     /// </summary>
-    public static async Task<AcceptanceContext> CreateAsync(string? organizationName = null)
+    public static Task<AcceptanceContext> CreateAsync(string? organizationName = null)
     {
-        var factory = new ChronosApiFactory();
+        return CreateAsync(new ChronosApiFactory(), ownsFactory: true, organizationName);
+    }
+
+    /// <summary>
+    /// Registers another organization inside an existing API factory/database. Use
+    /// this for tenant-isolation scenarios where both organizations must coexist in
+    /// the same test host.
+    /// </summary>
+    public static Task<AcceptanceContext> CreateAsync(
+        ChronosApiFactory factory,
+        string? organizationName = null)
+    {
+        return CreateAsync(factory, ownsFactory: false, organizationName);
+    }
+
+    private static async Task<AcceptanceContext> CreateAsync(
+        ChronosApiFactory factory,
+        bool ownsFactory,
+        string? organizationName)
+    {
         var client = factory.CreateClient();
 
         var email = $"admin-{Guid.NewGuid():N}@chronos.test";
@@ -57,7 +79,7 @@ public sealed class AcceptanceContext : IDisposable
 
         var auth = await register.ReadJsonAsync<AuthResponse>()
                    ?? throw new InvalidOperationException("Registration returned no auth token.");
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.Token);
+        client.UseBearerToken(auth.Token);
 
         var info = await (await client.GetAsync("/api/management/organization/info"))
                        .ReadJsonAsync<OrganizationInformation>()
@@ -66,7 +88,7 @@ public sealed class AcceptanceContext : IDisposable
 
         var adminUserId = info.UserRoles.FirstOrDefault()?.UserId ?? Guid.Empty;
 
-        return new AcceptanceContext(factory, client, info.Id, adminUserId, email);
+        return new AcceptanceContext(factory, client, info.Id, adminUserId, email, ownsFactory);
     }
 
     /// <summary>
@@ -87,6 +109,7 @@ public sealed class AcceptanceContext : IDisposable
     public void Dispose()
     {
         AdminClient.Dispose();
-        Factory.Dispose();
+        if (_ownsFactory)
+            Factory.Dispose();
     }
 }
