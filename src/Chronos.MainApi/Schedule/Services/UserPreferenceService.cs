@@ -138,23 +138,27 @@ public class UserPreferenceService(
         return filtered;
     }
 
-    public async Task UpdateUserPreferenceAsync(Guid organizationId, Guid userId,
+    public async Task UpdateUserPreferenceAsync(Guid organizationId, Guid preferenceId, Guid userId,
         Guid schedulingPeriodId, string key, string value)
     {
         logger.LogInformation(
-            "Updating user preference. UserId: {UserId}, OrganizationId: {OrganizationId}, SchedulingPeriodId: {SchedulingPeriodId}, Key: {Key}, Value: {Value}",
-            userId, organizationId, schedulingPeriodId, key, value);
+            "Updating user preference. PreferenceId: {PreferenceId}, OrganizationId: {OrganizationId}, UserId: {UserId}, SchedulingPeriodId: {SchedulingPeriodId}, Key: {Key}, Value: {Value}",
+            preferenceId, organizationId, userId, schedulingPeriodId, key, value);
+
+        var preference = await ValidateAndGetUserPreferenceAsync(organizationId, preferenceId);
 
         await schedulingPeriodService.validateSchedulingPeriodAsync(organizationId, schedulingPeriodId);
-        var preference = await GetUserPreferenceAsync(organizationId, userId, schedulingPeriodId, key);
 
+        preference.UserId = userId;
+        preference.SchedulingPeriodId = schedulingPeriodId;
+        preference.Key = key;
         preference.Value = value;
 
         await userPreferenceRepository.UpdateAsync(preference);
 
         logger.LogInformation(
-            "User preference updated successfully. UserPreferenceId: {UserPreferenceId}, UserId: {UserId}, OrganizationId: {OrganizationId}",
-            preference.Id, userId, organizationId);
+            "User preference updated successfully. UserPreferenceId: {UserPreferenceId}, OrganizationId: {OrganizationId}",
+            preference.Id, organizationId);
     }
 
     public async Task DeleteUserPreferenceAsync(Guid organizationId, Guid userPreferenceId)

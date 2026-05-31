@@ -328,21 +328,20 @@ public class ConstraintController(
     }
 
     [Authorize (Policy = OperatorPolicy)]
-    [HttpPatch("preferenceConstraint/{userId}/{schedulingPeriodId}/{key}")]
+    [HttpPatch("preferenceConstraint/{preferenceId}")]
     public async Task<IActionResult> UpdateUserPreference(
-        Guid userId,
-        Guid schedulingPeriodId,
-        string key,
+        Guid preferenceId,
         [FromBody] UpdateUserPreferenceRequest request)
     {
-        logger.LogInformation("Update user preference endpoint was called for {UserId}, {PeriodId}, {Key}", userId, schedulingPeriodId, key);
+        logger.LogInformation("Update user preference endpoint was called for {PreferenceId}", preferenceId);
         var organizationId = ControllerUtils.GetOrganizationIdAndFailIfMissing(HttpContext, logger);
 
         await userPreferenceService.UpdateUserPreferenceAsync(
             organizationId,
-            userId,
-            schedulingPeriodId,
-            key,
+            preferenceId,
+            request.UserId,
+            request.SchedulingPeriodId,
+            request.Key,
             request.Value);
 
         return NoContent();
