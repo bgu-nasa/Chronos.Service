@@ -52,6 +52,20 @@ public class DepartmentServiceTests
     }
 
     [Test]
+    public async Task GivenSoftDeletedOrg_WhenCreateDepartment_ThenCreatesDepartmentDuringGracePeriod()
+    {
+        var orgId = Guid.NewGuid();
+        _organizationRepository.GetByIdAsync(orgId)
+            .Returns(new Organization { Id = orgId, Deleted = true, DeletedTime = DateTime.UtcNow });
+
+        var result = await _service.CreateDepartmentAsync(orgId, "Grace Period Department");
+
+        Assert.That(result.Name, Is.EqualTo("Grace Period Department"));
+        Assert.That(result.OrganizationId, Is.EqualTo(orgId));
+        await _departmentRepository.Received(1).AddAsync(Arg.Any<Department>());
+    }
+
+    [Test]
     public async Task GivenDepartmentsAcrossOrgs_WhenGetDepartments_ThenReturnsOnlyThisOrgs()
     {
         // GetAllAsync returns the whole (cross-tenant) departments table;
