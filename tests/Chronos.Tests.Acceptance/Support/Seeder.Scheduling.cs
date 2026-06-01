@@ -74,10 +74,11 @@ public sealed partial class Seeder
     {
         var suffix = Guid.NewGuid().ToString("N")[..8];
         var dept = await CreateDepartmentAsync($"Activity Dept {suffix}");
+        var from = DateTime.UtcNow.Date.AddDays(30);
         var period = await CreateSchedulingPeriodAsync(
             $"Activity Period {suffix}",
-            new DateTime(2026, 9, 1),
-            new DateTime(2027, 1, 31));
+            from,
+            from.AddMonths(4));
         var instructor = await CreateUserAsync($"activity-instructor-{suffix}@chronos.test");
         var subject = await CreateSubjectAsync(
             organizationId,

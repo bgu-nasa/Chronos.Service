@@ -1,3 +1,5 @@
+using Chronos.Agent.Conversation;
+using Chronos.Agent.Extraction;
 using Chronos.Data.Context;
 using Chronos.MainApi.Auth.Configuration;
 using Chronos.MainApi.Schedule.Messaging;
@@ -12,7 +14,7 @@ namespace Chronos.Tests.Acceptance.Infrastructure;
 
 /// <summary>
 /// Custom WebApplicationFactory that replaces external dependencies
-/// (PostgreSQL, RabbitMQ) with in-memory/mock equivalents.
+/// (PostgreSQL, RabbitMQ, LLM provider) with deterministic test equivalents.
 /// </summary>
 public class ChronosApiFactory : WebApplicationFactory<AuthConfiguration>
 {
@@ -45,6 +47,7 @@ public class ChronosApiFactory : WebApplicationFactory<AuthConfiguration>
         {
             ReplaceDatabase(services);
             ReplaceMessagePublisher(services);
+            ReplaceAgentLlmAdapter(services);
             ConfigureTestAuth(services);
         });
     }
@@ -95,6 +98,17 @@ public class ChronosApiFactory : WebApplicationFactory<AuthConfiguration>
         services.AddSingleton(Substitute.For<IRabbitMqConnectionFactory>());
     }
 
+    private static void ReplaceAgentLlmAdapter(IServiceCollection services)
+    {
+        var descriptorsToRemove = services
+            .Where(d => d.ServiceType == typeof(ILlmAdapter))
+            .ToList();
+        foreach (var descriptor in descriptorsToRemove)
+            services.Remove(descriptor);
+
+        services.AddScoped<ILlmAdapter, DeterministicAgentLlmAdapter>();
+    }
+
     private static void ConfigureTestAuth(IServiceCollection services)
     {
         services.Configure<AuthConfiguration>(opts =>
@@ -135,5 +149,33 @@ public class ChronosApiFactory : WebApplicationFactory<AuthConfiguration>
         var scope = Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         return (scope, db);
+    }
+
+    private sealed class DeterministicAgentLlmAdapter : ILlmAdapter
+    {
+        public Task<LlmResponse> ChatAsync(
+            IReadOnlyList<ChatMessage> messages,
+            LlmOptions? options = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (options?.JsonMode == true)
+            {
+                const string extractedDraft = """
+                {
+                  "hardConstraints": [
+                    { "key": "forbidden_timerange", "value": "Friday 09:00 - 17:00" }
+                  ],
+                  "softPreferences": [
+                    { "key": "preferred_weekday", "value": "Monday" }
+                  ]
+                }
+                """;
+
+                return Task.FromResult(new LlmResponse(extractedDraft));
+            }
+
+            return Task.FromResult(new LlmResponse(
+                "Got it. I will draft an unavailable Friday time range and a Monday preference."));
+        }
     }
 }
