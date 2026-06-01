@@ -10,6 +10,6 @@ public interface IUserConstraintService
     Task<List<UserConstraint>> GetByUserIdAsync(Guid organizationId,  Guid userId);
     Task<List<UserConstraint>> GetBySchedulingPeriodIdAsync(Guid organizationId, Guid schedulingPeriodId);
     Task<List<UserConstraint>> GetBySchedulingPeriodAndUserIdAsync(Guid organizationId, Guid schedulingPeriodId, Guid userId);
-    Task UpdateUserConstraintAsync(Guid organizationId, Guid userConstraintId, string key, string value, int? weekNum = null);
+    Task UpdateUserConstraintAsync(Guid organizationId, Guid userConstraintId, Guid userId, Guid schedulingPeriodId, string key, string value, int? weekNum = null);
     Task DeleteUserConstraintAsync(Guid organizationId, Guid userConstraintId);
 }

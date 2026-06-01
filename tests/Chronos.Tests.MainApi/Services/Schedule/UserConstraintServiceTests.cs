@@ -439,6 +439,8 @@ public class UserConstraintServiceTests
     {
         var organizationId = Guid.NewGuid();
         var constraintId = Guid.NewGuid();
+        var newUserId = Guid.NewGuid();
+        var newSchedulingPeriodId = Guid.NewGuid();
         var constraint = new UserConstraint
         {
             Id = constraintId,
@@ -450,14 +452,18 @@ public class UserConstraintServiceTests
         };
 
         _userConstraintRepository.GetByIdAsync(constraintId).Returns(constraint);
+        _schedulingPeriodService.validateSchedulingPeriodAsync(organizationId, newSchedulingPeriodId).Returns(Task.CompletedTask);
 
         var newKey = "new_key";
         var newValue = "new_value";
 
-        await _service.UpdateUserConstraintAsync(organizationId, constraintId, newKey, newValue);
+        await _service.UpdateUserConstraintAsync(organizationId, constraintId, newUserId, newSchedulingPeriodId, newKey, newValue);
 
         await _userConstraintRepository.Received(1).UpdateAsync(Arg.Is<UserConstraint>(c =>
-            c.Key == newKey && c.Value == newValue));
+            c.UserId == newUserId &&
+            c.SchedulingPeriodId == newSchedulingPeriodId &&
+            c.Key == newKey &&
+            c.Value == newValue));
     }
 
     [Test]
@@ -465,11 +471,14 @@ public class UserConstraintServiceTests
     {
         var organizationId = Guid.NewGuid();
         var constraintId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var schedulingPeriodId = Guid.NewGuid();
 
+        _schedulingPeriodService.validateSchedulingPeriodAsync(organizationId, schedulingPeriodId).Returns(Task.CompletedTask);
         _userConstraintRepository.GetByIdAsync(constraintId).ReturnsNull();
 
         var ex = Assert.ThrowsAsync<NotFoundException>(async () =>
-            await _service.UpdateUserConstraintAsync(organizationId, constraintId, "key", "value"));
+            await _service.UpdateUserConstraintAsync(organizationId, constraintId, userId, schedulingPeriodId, "key", "value"));
 
         Assert.That(ex!.Message, Does.Contain("not found"));
     }
@@ -480,6 +489,8 @@ public class UserConstraintServiceTests
         var organizationId = Guid.NewGuid();
         var wrongOrgId = Guid.NewGuid();
         var constraintId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var schedulingPeriodId = Guid.NewGuid();
         var constraint = new UserConstraint
         {
             Id = constraintId,
@@ -490,10 +501,11 @@ public class UserConstraintServiceTests
             Value = "value"
         };
 
+        _schedulingPeriodService.validateSchedulingPeriodAsync(organizationId, schedulingPeriodId).Returns(Task.CompletedTask);
         _userConstraintRepository.GetByIdAsync(constraintId).Returns(constraint);
 
         var ex = Assert.ThrowsAsync<NotFoundException>(async () =>
-            await _service.UpdateUserConstraintAsync(organizationId, constraintId, "new_key", "new_value"));
+            await _service.UpdateUserConstraintAsync(organizationId, constraintId, userId, schedulingPeriodId, "new_key", "new_value"));
 
         Assert.That(ex!.Message, Does.Contain("not found"));
     }
