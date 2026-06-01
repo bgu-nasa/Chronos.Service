@@ -160,12 +160,12 @@ public class AuthServiceTests
     #region RefreshTokenAsync
 
     [Test]
-    public void GivenNonExistentUser_WhenRefreshToken_ThenThrowsKeyNotFound()
+    public void GivenNonExistentUser_WhenRefreshToken_ThenThrowsNotFound()
     {
         _userRepository.GetByIdAsync(Arg.Any<Guid>())
             .Returns((User?)null);
 
-        Assert.ThrowsAsync<KeyNotFoundException>(() => _sut.RefreshTokenAsync(Guid.NewGuid()));
+        Assert.ThrowsAsync<NotFoundException>(() => _sut.RefreshTokenAsync(Guid.NewGuid()));
     }
 
     [Test]

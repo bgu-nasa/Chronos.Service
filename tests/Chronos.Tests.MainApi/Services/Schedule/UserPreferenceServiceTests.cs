@@ -2,6 +2,7 @@ using Chronos.Data.Repositories.Schedule;
 using Chronos.Domain.Schedule;
 using Chronos.MainApi.Schedule.Services;
 using Chronos.MainApi.Shared.ExternalMangement;
+using Chronos.Shared.Exceptions;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using NSubstitute.ReturnsExtensions;
@@ -101,7 +102,7 @@ public class UserPreferenceServiceTests
     }
 
     [Test]
-    public void GetUserPreferenceAsync_WithNonExistentPreference_ThrowsKeyNotFoundException()
+    public void GetUserPreferenceAsync_WithNonExistentPreference_ThrowsNotFoundException()
     {
         var organizationId = Guid.NewGuid();
         var userId = Guid.NewGuid();
@@ -110,14 +111,14 @@ public class UserPreferenceServiceTests
         _validationService.ValidateOrganizationAsync(organizationId).Returns(Task.CompletedTask);
         _userPreferenceRepository.GetByUserPeriodAsync(userId, schedulingPeriodId).Returns(new List<UserPreference>());
 
-        var ex = Assert.ThrowsAsync<KeyNotFoundException>(async () =>
+        var ex = Assert.ThrowsAsync<NotFoundException>(async () =>
             await _service.GetUserPreferenceAsync(organizationId, userId, schedulingPeriodId, "key"));
 
         Assert.That(ex!.Message, Does.Contain("not found"));
     }
 
     [Test]
-    public void GetUserPreferenceAsync_WithWrongOrganization_ThrowsKeyNotFoundException()
+    public void GetUserPreferenceAsync_WithWrongOrganization_ThrowsNotFoundException()
     {
         var organizationId = Guid.NewGuid();
         var wrongOrgId = Guid.NewGuid();
@@ -136,7 +137,7 @@ public class UserPreferenceServiceTests
         _validationService.ValidateOrganizationAsync(organizationId).Returns(Task.CompletedTask);
         _userPreferenceRepository.GetByUserPeriodAsync(userId, schedulingPeriodId).Returns(new List<UserPreference> { preference });
 
-        var ex = Assert.ThrowsAsync<KeyNotFoundException>(async () =>
+        var ex = Assert.ThrowsAsync<NotFoundException>(async () =>
             await _service.GetUserPreferenceAsync(organizationId, userId, schedulingPeriodId, "key"));
 
         Assert.That(ex!.Message, Does.Contain("not found"));
@@ -458,7 +459,7 @@ public class UserPreferenceServiceTests
     }
 
     [Test]
-    public void UpdateUserPreferenceAsync_WithNonExistentPreference_ThrowsKeyNotFoundException()
+    public void UpdateUserPreferenceAsync_WithNonExistentPreference_ThrowsNotFoundException()
     {
         var organizationId = Guid.NewGuid();
         var preferenceId = Guid.NewGuid();
@@ -467,14 +468,14 @@ public class UserPreferenceServiceTests
 
         _userPreferenceRepository.GetByIdAsync(preferenceId).ReturnsNull();
 
-        var ex = Assert.ThrowsAsync<KeyNotFoundException>(async () =>
+        var ex = Assert.ThrowsAsync<NotFoundException>(async () =>
             await _service.UpdateUserPreferenceAsync(organizationId, preferenceId, userId, schedulingPeriodId, "key", "value"));
 
         Assert.That(ex!.Message, Does.Contain("not found"));
     }
 
     [Test]
-    public void UpdateUserPreferenceAsync_WithWrongOrganization_ThrowsKeyNotFoundException()
+    public void UpdateUserPreferenceAsync_WithWrongOrganization_ThrowsNotFoundException()
     {
         var organizationId = Guid.NewGuid();
         var wrongOrgId = Guid.NewGuid();
@@ -493,7 +494,7 @@ public class UserPreferenceServiceTests
 
         _userPreferenceRepository.GetByIdAsync(preferenceId).Returns(preference);
 
-        var ex = Assert.ThrowsAsync<KeyNotFoundException>(async () =>
+        var ex = Assert.ThrowsAsync<NotFoundException>(async () =>
             await _service.UpdateUserPreferenceAsync(organizationId, preferenceId, userId, schedulingPeriodId, "key", "new_value"));
 
         Assert.That(ex!.Message, Does.Contain("not found"));
@@ -526,21 +527,21 @@ public class UserPreferenceServiceTests
     }
 
     [Test]
-    public void DeleteUserPreferenceAsync_WithNonExistentPreference_ThrowsKeyNotFoundException()
+    public void DeleteUserPreferenceAsync_WithNonExistentPreference_ThrowsNotFoundException()
     {
         var organizationId = Guid.NewGuid();
         var preferenceId = Guid.NewGuid();
 
         _userPreferenceRepository.GetByIdAsync(preferenceId).ReturnsNull();
 
-        var ex = Assert.ThrowsAsync<KeyNotFoundException>(async () =>
+        var ex = Assert.ThrowsAsync<NotFoundException>(async () =>
             await _service.DeleteUserPreferenceAsync(organizationId, preferenceId));
 
         Assert.That(ex!.Message, Does.Contain("not found"));
     }
 
     [Test]
-    public void DeleteUserPreferenceAsync_WithWrongOrganization_ThrowsKeyNotFoundException()
+    public void DeleteUserPreferenceAsync_WithWrongOrganization_ThrowsNotFoundException()
     {
         var organizationId = Guid.NewGuid();
         var wrongOrgId = Guid.NewGuid();
@@ -557,7 +558,7 @@ public class UserPreferenceServiceTests
 
         _userPreferenceRepository.GetByIdAsync(preferenceId).Returns(preference);
 
-        var ex = Assert.ThrowsAsync<KeyNotFoundException>(async () =>
+        var ex = Assert.ThrowsAsync<NotFoundException>(async () =>
             await _service.DeleteUserPreferenceAsync(organizationId, preferenceId));
 
         Assert.That(ex!.Message, Does.Contain("not found"));
