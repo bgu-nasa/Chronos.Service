@@ -2,6 +2,7 @@ using System.Linq;
 using Chronos.Data.Repositories.Schedule;
 using Chronos.Domain.Schedule;
 using Chronos.MainApi.Shared.ExternalMangement;
+using Chronos.Shared.Exceptions;
 
 namespace Chronos.MainApi.Schedule.Services;
 
@@ -60,7 +61,7 @@ public class UserPreferenceService(
             logger.LogInformation(
                 "User preference not found. UserId: {UserId}, OrganizationId: {OrganizationId}, SchedulingPeriodId: {SchedulingPeriodId}, Key: {Key}",
                 userId, organizationId, schedulingPeriodId, key);
-            throw new KeyNotFoundException("User preference not found.");
+            throw new NotFoundException("User preference not found.");
         }
 
         return preference;
@@ -186,7 +187,7 @@ public class UserPreferenceService(
             logger.LogInformation(
                 "User preference not found or does not belong to the organization. UserPreferenceId: {UserPreferenceId}, OrganizationId: {OrganizationId}",
                 userPreferenceId, organizationId);
-            throw new KeyNotFoundException("User preference not found.");
+            throw new NotFoundException("User preference not found.");
         }
 
         return preference;
