@@ -48,6 +48,17 @@ public class ManagementValidationServiceTests
     }
 
     [Test]
+    public void GivenSoftDeletedOrganization_WhenValidateOrganization_ThenDoesNotThrowDuringGracePeriod()
+    {
+        var orgId = Guid.NewGuid();
+        _organizationRepository.GetByIdAsync(orgId)
+            .Returns(new Organization { Id = orgId, Deleted = true, DeletedTime = DateTime.UtcNow });
+
+        Assert.DoesNotThrowAsync(() =>
+            _service.ValidateOrganizationAsync(orgId));
+    }
+
+    [Test]
     public void GivenNullDepartment_WhenValidateAndGetDepartment_ThenThrowsNotFound()
     {
         _departmentRepository.GetByIdAsync(Arg.Any<Guid>()).ReturnsNull();

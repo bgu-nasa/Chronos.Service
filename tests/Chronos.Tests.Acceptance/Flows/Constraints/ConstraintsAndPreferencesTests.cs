@@ -103,38 +103,34 @@ public class ConstraintsAndPreferencesTests
     [Test]
     public async Task UserPreference_FullRoundTrip()
     {
-        // This test seem to be stupid / doesn't work, shalev should fix it 
-        // const string key = "preferred_weekday";
-        //
-        // var create = await _ctx.AdminClient.PostJsonAsync($"{ConstraintsBase}/preferenceConstraint",
-        //     new CreateUserPreferenceRequest(_userId, _periodId, key, "Monday"));
-        // create.StatusCode.Should().Be(HttpStatusCode.Created);
-        // var created = await create.ReadJsonAsync<UserPreferenceResponse>();
-        // created!.Value.Should().Be("Monday");
-        //
-        // var afterCreate = await (await _ctx.AdminClient.GetAsync(
-        //         $"{ConstraintsBase}/preferenceConstraint/{_userId}/{_periodId}/{key}"))
-        //     .ReadJsonAsync<UserPreferenceResponse>();
-        // afterCreate!.Value.Should().Be("Monday");
-        //
-        // var update = await _ctx.AdminClient.PatchJsonAsync(
-        //     $"{ConstraintsBase}/preferenceConstraint/{_userId}/{_periodId}/{key}",
-        //     new UpdateUserPreferenceRequest(_userId, _periodId, key, "Tuesday"));
-        // update.StatusCode.Should().Be(HttpStatusCode.NoContent);
-        //
-        // var afterUpdate = await (await _ctx.AdminClient.GetAsync(
-        //         $"{ConstraintsBase}/preferenceConstraint/{_userId}/{_periodId}/{key}"))
-        //     .ReadJsonAsync<UserPreferenceResponse>();
-        // afterUpdate!.Value.Should().Be("Tuesday");
-        //
-        // // Delete is by preference id; verify removal via the by-user list
-        // // (the by-key GET throws when absent rather than returning 404).
-        // var delete = await _ctx.AdminClient.DeleteAsync($"{ConstraintsBase}/preferenceConstraint/{created.Id}");
-        // delete.StatusCode.Should().Be(HttpStatusCode.NoContent);
-        //
-        // var remaining = await (await _ctx.AdminClient.GetAsync($"{ConstraintsBase}/preferenceConstraint/by-user/{_userId}"))
-        //     .ReadJsonAsync<UserPreferenceResponse[]>();
-        // remaining.Should().NotBeNull();
-        // remaining!.Should().NotContain(p => p.Key == key);
+        const string key = "preferred_weekday";
+
+        var create = await _ctx.AdminClient.PostJsonAsync($"{ConstraintsBase}/preferenceConstraint",
+            new CreateUserPreferenceRequest(_userId, _periodId, key, "Monday"));
+        create.StatusCode.Should().Be(HttpStatusCode.Created);
+        var created = await create.ReadJsonAsync<UserPreferenceResponse>();
+        created!.Value.Should().Be("Monday");
+
+        var afterCreate = await (await _ctx.AdminClient.GetAsync(
+                $"{ConstraintsBase}/preferenceConstraint/{_userId}/{_periodId}/{key}"))
+            .ReadJsonAsync<UserPreferenceResponse>();
+        afterCreate!.Value.Should().Be("Monday");
+
+        var update = await _ctx.AdminClient.PatchJsonAsync(
+            $"{ConstraintsBase}/preferenceConstraint/{created.Id}",
+            new UpdateUserPreferenceRequest(_userId, _periodId, key, "Tuesday"));
+        update.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var afterUpdate = await (await _ctx.AdminClient.GetAsync(
+                $"{ConstraintsBase}/preferenceConstraint/{_userId}/{_periodId}/{key}"))
+            .ReadJsonAsync<UserPreferenceResponse>();
+        afterUpdate!.Value.Should().Be("Tuesday");
+
+        var delete = await _ctx.AdminClient.DeleteAsync($"{ConstraintsBase}/preferenceConstraint/{created.Id}");
+        delete.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var afterDelete = await _ctx.AdminClient.GetAsync(
+            $"{ConstraintsBase}/preferenceConstraint/{_userId}/{_periodId}/{key}");
+        afterDelete.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 }
