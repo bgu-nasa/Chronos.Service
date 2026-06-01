@@ -61,7 +61,7 @@ public class ConstraintsAndPreferencesTests
         afterCreate!.Value.Should().Be("Friday");
 
         var update = await _ctx.AdminClient.PatchJsonAsync($"{ConstraintsBase}/userConstraint/{created.Id}",
-            new UpdateUserConstraintRequest("unavailable_day", "Monday"));
+            new UpdateUserConstraintRequest(_userId, _periodId, "unavailable_day", "Monday"));
         update.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         var afterUpdate = await (await _ctx.AdminClient.GetAsync($"{ConstraintsBase}/userConstraint/{created.Id}"))
