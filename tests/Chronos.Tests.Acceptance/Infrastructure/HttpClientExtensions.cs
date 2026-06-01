@@ -43,6 +43,12 @@ public static class HttpClientExtensions
         return await client.PatchAsync(url, content);
     }
 
+    public static async Task<HttpResponseMessage> PutJsonAsync<T>(
+        this HttpClient client, string url, T payload)
+    {
+        return await client.PutAsJsonAsync(url, payload, JsonOptions);
+    }
+
     public static async Task<TResponse?> ReadJsonAsync<TResponse>(
         this HttpResponseMessage response)
     {
