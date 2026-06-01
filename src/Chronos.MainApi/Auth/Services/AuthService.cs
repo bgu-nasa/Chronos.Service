@@ -111,7 +111,7 @@ public class AuthService(
         var user = await userRepository.GetByIdAsync(userId);
         if (user is null)
         {
-            throw new KeyNotFoundException("User not found");
+            throw new NotFoundException("User not found");
         }
 
         var token = await tokenGenerator.GenerateTokenAsync(user);
