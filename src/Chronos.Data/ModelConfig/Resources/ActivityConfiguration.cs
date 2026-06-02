@@ -23,5 +23,8 @@ public class ActivityConfiguration : IEntityTypeConfiguration<Activity>
             .HasMaxLength(128);
 
         builder.Property(a => a.ExpectedStudents);
+
+        builder.Property(a => a.Duration)
+            .IsRequired();
     }
 }

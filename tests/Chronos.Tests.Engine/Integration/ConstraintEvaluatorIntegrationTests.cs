@@ -67,6 +67,22 @@ public class ConstraintEvaluatorIntegrationTests
     }
 
     [Test]
+    public async Task CanAssignAsync_WhenExpectedStudentsExceedCapacity_withoutRequiredCapacityConstraint_ShouldReturnFalse()
+    {
+        var activity = TestDataBuilder.CreateActivity(expectedStudents: 30);
+        var slot = TestDataBuilder.CreateSlot();
+        var resource = TestDataBuilder.CreateResource(capacity: 15);
+
+        _constraintRepository
+            .GetByActivityIdAsync(activity.Id)
+            .Returns(new List<Domain.Schedule.ActivityConstraint>());
+
+        var canAssign = await _evaluator.CanAssignAsync(activity, slot, resource);
+
+        canAssign.Should().BeFalse();
+    }
+
+    [Test]
     public async Task CanAssignAsync_WithNoConstraints_ShouldReturnTrue()
     {
         // Arrange
