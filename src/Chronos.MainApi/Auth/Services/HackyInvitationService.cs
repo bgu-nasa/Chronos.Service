@@ -2,42 +2,61 @@
 
 namespace Chronos.MainApi.Auth.Services;
 
-// TODO Remove this bullshit
 public class HackyInvitationService
 {
-    private const long Prime = 22697L;
-    private const long TopMultiplier = 10_000L;
-    private const string Map = "0123456789abcdefghijklmnopqrstuvwxyz";
+    private const int PrefixLength = 8;
+    private static readonly char[] alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789".ToCharArray();
 
-    private readonly Random _random = new();
+    private readonly ILogger<HackyInvitationService> _logger;
+    private readonly string _prefix = "";
+
+    public HackyInvitationService(ILogger<HackyInvitationService> logger, bool setPrefix = true)
+    {
+        _logger = logger;
+
+        if (setPrefix)
+        {
+            _prefix = GenerateRandomString(PrefixLength);
+
+            // Use telemetry to get this prefix
+            logger.LogInformation("Generated a prefix for invite codes: {InviteCodePrefix}", _prefix);
+        }
+        else
+        {
+            _logger.LogWarning("No prefix set for invite codes - should not happen outside of development environments.");
+        }
+    }
+
+    private string GenerateRandomString(int length)
+    {
+        var random = new Random();
+
+        return new string(Enumerable.Range(0, length)
+            .Select(_ => alphabet[random.Next(alphabet.Length)])
+            .ToArray());
+    }
+
+    private static readonly IReadOnlyList<string> InviteCodes =
+    [
+        "BGUSTAFF2026",
+        "BGUDEVTEAM2026",
+        "TESTCODE_h3587",
+        "STAGINGCUSTOMER",
+        "PRIVATEPREVIEW10"
+    ];
 
     public bool VerifyInviteCode(string code)
     {
-        var num = 0L;
-        var arr = code.ToCharArray().Reverse().ToArray();
-
-        foreach (var c in arr)
+        if (string.IsNullOrWhiteSpace(_prefix))
         {
-            num *= Map.Length;
-            num += Map.IndexOf(c);
+            return InviteCodes.Contains(code);
         }
 
-        return num % Prime == 0;
-    }
-
-    public string GenerateInviteCode()
-    {
-        var builder = new StringBuilder();
-        var multiplier = _random.NextInt64(TopMultiplier);
-        var num = multiplier * Prime;
-        var radix = Map.Length;
-
-        while (num > 0)
+        if (!code.StartsWith(_prefix))
         {
-            builder.Append(Map[(int)num % radix]);
-            num /= radix;
+            return false;
         }
 
-        return builder.ToString();
+        return InviteCodes.Contains(code[_prefix.Length..]);
     }
 }

@@ -11,22 +11,21 @@ public class AuthService(
     ILogger<AuthService> logger,
     IUserRepository userRepository,
     IOnboardingService onboardingService,
+    HackyInvitationService inviteCodeVerificationService,
     ITokenGenerator tokenGenerator)
     : IAuthService
 {
-    private readonly HackyInvitationService _inviteCodeVerificationService = new();
-    
     public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
     {
         // TODO Remove this after development
-        if (!_inviteCodeVerificationService.VerifyInviteCode(request.InviteCode))
+        if (!inviteCodeVerificationService.VerifyInviteCode(request.InviteCode))
         {
             logger.LogWarning("Invalid invite code was sent {inviteCode}", request.InviteCode);
             throw new UnauthorizedException("Chronos service is still under private beta, you may get access by contacting us.");
         }
-        
+
         EmailValidator.ValidateEmail(request.AdminUser.Email);
-        
+
         if (await userRepository.EmailExistsIgnoreFiltersAsync(request.AdminUser.Email))
         {
             throw new BadRequestException("User with this email already exists");
@@ -68,7 +67,7 @@ public class AuthService(
     public async Task<CreateUserResponse> CreateUserAsync(string organizationId, CreateUserRequest request)
     {
         EmailValidator.ValidateEmail(request.Email);
-        
+
         if (await userRepository.GetByEmailAsync(request.Email) is not null)
         {
             throw new BadRequestException("User with this email already exists");
@@ -94,7 +93,7 @@ public class AuthService(
     public async Task<AuthResponse> LoginAsync(LoginRequest request)
     {
         EmailValidator.ValidateEmail(request.Email);
-        
+
         var user = await userRepository.GetByEmailIgnoreFiltersAsync(request.Email);
 
         if (user is null || !BCryptNet.Verify(request.Password, user.PasswordHash))
