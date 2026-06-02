@@ -2,6 +2,7 @@ using Chronos.Data.Repositories.Schedule;
 using Chronos.Domain.Constraints;
 using Chronos.Domain.Resources;
 using Chronos.Domain.Schedule;
+using Chronos.Engine.Matching;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Chronos.Engine.Constraints.Evaluation;
@@ -24,9 +25,15 @@ public class ConstraintEvaluator : IConstraintEvaluator
     }
 
     /// <inheritdoc />
-    public async Task<bool> CanAssignAsync(Activity activity, Slot slot, Resource resource, int? weekNum = null)
+    public async Task<bool> CanAssignAsync(
+        Activity activity,
+        Slot slot,
+        Resource resource,
+        int? weekNum = null,
+        DateTime? schedulingPeriodFrom = null
+    )
     {
-        var violations = await GetViolationsAsync(activity, slot, resource, weekNum);
+        var violations = await GetViolationsAsync(activity, slot, resource, weekNum, schedulingPeriodFrom);
 
         // Assignment is valid only if there are no hard constraint violations
         var hasHardViolations = violations.Any(v => v.ViolationType == ViolationType.Hard);
@@ -39,7 +46,8 @@ public class ConstraintEvaluator : IConstraintEvaluator
         Activity activity,
         Slot slot,
         Resource resource,
-        int? weekNum = null
+        int? weekNum = null,
+        DateTime? schedulingPeriodFrom = null
     )
     {
         // Create a scope to resolve scoped dependencies (repository and validators)
@@ -54,7 +62,13 @@ public class ConstraintEvaluator : IConstraintEvaluator
         if (weekNum.HasValue)
         {
             constraints = constraints
-                .Where(constraint => !constraint.WeekNum.HasValue || constraint.WeekNum.Value == weekNum.Value)
+                .Where(constraint =>
+                    PeriodWeekCalculator.ConstraintWeekApplies(
+                        constraint.WeekNum,
+                        weekNum.Value,
+                        schedulingPeriodFrom
+                    )
+                )
                 .ToList();
         }
 

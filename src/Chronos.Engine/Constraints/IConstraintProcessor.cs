@@ -11,6 +11,7 @@ public interface IConstraintProcessor
         Guid organizationId,
         Guid? userId = null,
         Guid? schedulingPeriodId = null,
-        int? weekNum = null
+        int? weekNum = null,
+        DateTime? schedulingPeriodFrom = null
     );
 }

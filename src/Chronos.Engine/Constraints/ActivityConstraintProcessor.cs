@@ -1,5 +1,6 @@
 using Chronos.Data.Repositories.Schedule;
 using Chronos.Domain.Schedule;
+using Chronos.Engine.Matching;
 
 namespace Chronos.Engine.Constraints;
 
@@ -25,7 +26,8 @@ public class ActivityConstraintProcessor(
         Guid organizationId,
         Guid? userId = null,
         Guid? schedulingPeriodId = null,
-        int? weekNum = null
+        int? weekNum = null,
+        DateTime? schedulingPeriodFrom = null
     )
     {
         _logger.LogInformation(
@@ -55,7 +57,8 @@ public class ActivityConstraintProcessor(
                 organizationId,
                 activityId,
                 schedulingPeriodId,
-                weekNum
+                weekNum,
+                schedulingPeriodFrom
             );
 
             excludedSlots.UnionWith(excludedByThisConstraint);
@@ -108,7 +111,8 @@ public class ActivityConstraintProcessor(
                     organizationId,
                     activityId,
                     schedulingPeriodId,
-                    weekNum
+                    weekNum,
+                    schedulingPeriodFrom
                 );
 
                 excludedSlots.UnionWith(excludedByThisConstraint);
@@ -129,10 +133,17 @@ public class ActivityConstraintProcessor(
         Guid organizationId,
         Guid activityId,
         Guid? schedulingPeriodId = null,
-        int? weekNum = null
+        int? weekNum = null,
+        DateTime? schedulingPeriodFrom = null
     )
     {
-        if (constraint.WeekNum.HasValue && weekNum.HasValue && constraint.WeekNum.Value != weekNum.Value)
+        if (constraint.WeekNum.HasValue
+            && weekNum.HasValue
+            && !PeriodWeekCalculator.ConstraintWeekApplies(
+                constraint.WeekNum,
+                weekNum.Value,
+                schedulingPeriodFrom
+            ))
         {
             return new HashSet<Guid>();
         }

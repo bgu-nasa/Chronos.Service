@@ -292,7 +292,7 @@ public class OnlineMatchingStrategyTests
 
         // Slot was excluded so same-slot stage fails, fallback also fails (only 1 slot and it's excluded)
         Assert.That(result.Success, Is.False);
-        Assert.That(result.FailureReason, Does.Contain("could not be rescheduled"));
+        Assert.That(result.FailureReason, Does.Contain("could not be re-scheduled"));
     }
 
     [Test]
