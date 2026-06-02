@@ -2,12 +2,14 @@ using Chronos.Agent.Conversation;
 using Chronos.Agent.Extraction;
 using Chronos.Data.Context;
 using Chronos.MainApi.Auth.Configuration;
+using Chronos.MainApi.Auth.Services;
 using Chronos.MainApi.Schedule.Messaging;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
 
 namespace Chronos.Tests.Acceptance.Infrastructure;
@@ -49,6 +51,7 @@ public class ChronosApiFactory : WebApplicationFactory<AuthConfiguration>
             ReplaceMessagePublisher(services);
             ReplaceAgentLlmAdapter(services);
             ConfigureTestAuth(services);
+            ReplaceInviteCodeVerification(services);
         });
     }
 
@@ -118,6 +121,20 @@ public class ChronosApiFactory : WebApplicationFactory<AuthConfiguration>
             opts.Audience = TestAudience;
             opts.ExpiryMinutes = 60;
         });
+    }
+
+    private static void ReplaceInviteCodeVerification(IServiceCollection services)
+    {
+        var descriptorsToRemove = services
+            .Where(d => d.ServiceType == typeof(HackyInvitationService))
+            .ToList();
+        foreach (var descriptor in descriptorsToRemove)
+            services.Remove(descriptor);
+
+        services.AddSingleton(sp =>
+            new HackyInvitationService(
+                sp.GetRequiredService<ILogger<HackyInvitationService>>(),
+                setPrefix: false));
     }
 
     /// <summary>
