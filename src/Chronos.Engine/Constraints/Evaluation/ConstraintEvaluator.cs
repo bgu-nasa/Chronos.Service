@@ -58,6 +58,13 @@ public class ConstraintEvaluator : IConstraintEvaluator
                 .ToList();
         }
 
+        // ASSIGNMENT_ALGORITHM §2.3: always enforce ExpectedStudents vs capacity when no
+        // required_capacity row applies (validator also checks enrollment when that row exists).
+        if (!constraints.Any(c => c.Key == "required_capacity"))
+        {
+            violations.AddRange(EvaluateEnrollmentCapacity(activity, resource));
+        }
+
         _logger.LogInformation(
             "Evaluating {ConstraintCount} constraints for Activity {ActivityId} with Slot {SlotId} and Resource {ResourceId}",
             constraints.Count,
@@ -105,5 +112,54 @@ public class ConstraintEvaluator : IConstraintEvaluator
         );
 
         return violations;
+    }
+
+    /// <summary>
+    /// ASSIGNMENT_ALGORITHM §2.3: always enforce ExpectedStudents vs room capacity,
+    /// independent of whether a <c>required_capacity</c> constraint row exists.
+    /// </summary>
+    private static IEnumerable<ConstraintViolation> EvaluateEnrollmentCapacity(
+        Activity activity,
+        Resource resource
+    )
+    {
+        if (!activity.ExpectedStudents.HasValue)
+        {
+            yield break;
+        }
+
+        var expected = activity.ExpectedStudents.Value;
+
+        if (!resource.Capacity.HasValue)
+        {
+            yield return new ConstraintViolation
+            {
+                ConstraintKey = "enrollment_capacity",
+                ConstraintValue = expected.ToString(),
+                ViolationType = ViolationType.Hard,
+                Severity = ViolationSeverity.Error,
+                Message =
+                    $"Resource '{resource.Identifier}' does not have capacity information for {expected} expected students",
+                Details =
+                    $"Expected students: {expected}, Resource capacity: null",
+            };
+            yield break;
+        }
+
+        var capacity = resource.Capacity.Value;
+        if (capacity < expected)
+        {
+            yield return new ConstraintViolation
+            {
+                ConstraintKey = "enrollment_capacity",
+                ConstraintValue = expected.ToString(),
+                ViolationType = ViolationType.Hard,
+                Severity = ViolationSeverity.Error,
+                Message =
+                    $"Resource capacity ({capacity}) is insufficient for expected students ({expected})",
+                Details =
+                    $"Expected students: {expected}, Resource capacity: {capacity}, Resource: {resource.Identifier}",
+            };
+        }
     }
 }
