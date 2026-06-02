@@ -14,6 +14,7 @@ namespace Chronos.Tests.MainApi.Auth.Services;
 public class AuthServiceTests
 {
     private ILogger<AuthService> _logger;
+    private ILogger<HackyInvitationService> _inviteServiceLogger;
     private IUserRepository _userRepository;
     private IOnboardingService _onboardingService;
     private ITokenGenerator _tokenGenerator;
@@ -23,10 +24,11 @@ public class AuthServiceTests
     public void SetUp()
     {
         _logger = Substitute.For<ILogger<AuthService>>();
+        _inviteServiceLogger = Substitute.For<ILogger<HackyInvitationService>>();
         _userRepository = Substitute.For<IUserRepository>();
         _onboardingService = Substitute.For<IOnboardingService>();
         _tokenGenerator = Substitute.For<ITokenGenerator>();
-        _sut = new AuthService(_logger, _userRepository, _onboardingService, _tokenGenerator);
+        _sut = new AuthService(_logger, _userRepository, _onboardingService, new HackyInvitationService(_inviteServiceLogger, setPrefix: false), _tokenGenerator);
     }
 
     #region RegisterAsync
@@ -246,7 +248,7 @@ public class AuthServiceTests
         {
             throw new ArgumentException($"Cannot use null for {nameof(inviteCode)}.");
         }
-        
+
         return new RegisterRequest(
             new CreateUserRequest("admin@test.com", "Admin", "User", "Password1"),
             "TestOrg",

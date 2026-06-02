@@ -11,6 +11,7 @@ public static class ModuleDiExtension
         services.Configure<AuthConfiguration>(configuration.GetSection(nameof(AuthConfiguration)));
 
         // Services
+        services.AddSingleton<HackyInvitationService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<ITokenGenerator, TokenGenerator>();
         services.AddScoped<IOnboardingService, OnboardingService>();
