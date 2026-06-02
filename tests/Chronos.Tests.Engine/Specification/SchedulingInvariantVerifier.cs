@@ -5,7 +5,7 @@ using Chronos.Tests.Engine.TestFixtures;
 namespace Chronos.Tests.Engine.Specification;
 
 /// <summary>
-/// Post-conditions from ASSIGNMENT_ALGORITHM.md Section 7 (I1–I8).
+/// Verifies post-condition invariants I1–I8 for specification tests.
 /// </summary>
 public static class SchedulingInvariantVerifier
 {
