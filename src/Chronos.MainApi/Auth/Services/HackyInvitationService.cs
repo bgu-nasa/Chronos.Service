@@ -17,6 +17,8 @@ public class HackyInvitationService
         if (setPrefix)
         {
             _prefix = GenerateRandomString(PrefixLength);
+
+            // Use telemetry to get this prefix
             logger.LogInformation("Generated a prefix for invite codes: {InviteCodePrefix}", _prefix);
         }
         else
@@ -34,7 +36,6 @@ public class HackyInvitationService
             .ToArray());
     }
 
-    // 
     private static readonly IReadOnlyList<string> InviteCodes =
     [
         "BGUSTAFF2026",
