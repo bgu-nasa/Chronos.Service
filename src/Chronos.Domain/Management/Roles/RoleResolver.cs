@@ -10,7 +10,7 @@ public static class RoleResolver
         { Role.Administrator, [Role.Administrator, Role.UserManager, Role.ResourceManager, Role.Operator, Role.Viewer] },
         { Role.UserManager, [Role.UserManager, Role.Viewer] },
         { Role.ResourceManager, [Role.ResourceManager, Role.Operator, Role.Viewer] },
-        { Role.Operator, [Role.Operator, Role.ResourceManager, Role.Administrator, Role.Viewer] },
+        { Role.Operator, [Role.Operator, Role.Viewer] },
         { Role.Viewer, [Role.Viewer] }
     };
 
