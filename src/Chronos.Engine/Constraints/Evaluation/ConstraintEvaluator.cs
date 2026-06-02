@@ -58,8 +58,8 @@ public class ConstraintEvaluator : IConstraintEvaluator
                 .ToList();
         }
 
-        // ASSIGNMENT_ALGORITHM §2.3: always enforce ExpectedStudents vs capacity when no
-        // required_capacity row applies (validator also checks enrollment when that row exists).
+        // Always enforce ExpectedStudents vs capacity when no required_capacity row exists
+        // (RequiredCapacityValidator also runs when that row is present).
         if (!constraints.Any(c => c.Key == "required_capacity"))
         {
             violations.AddRange(EvaluateEnrollmentCapacity(activity, resource));
@@ -115,8 +115,8 @@ public class ConstraintEvaluator : IConstraintEvaluator
     }
 
     /// <summary>
-    /// ASSIGNMENT_ALGORITHM §2.3: always enforce ExpectedStudents vs room capacity,
-    /// independent of whether a <c>required_capacity</c> constraint row exists.
+    /// Always enforce ExpectedStudents vs room capacity, independent of whether a
+    /// <c>required_capacity</c> constraint row exists.
     /// </summary>
     private static IEnumerable<ConstraintViolation> EvaluateEnrollmentCapacity(
         Activity activity,
