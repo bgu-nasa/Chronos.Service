@@ -93,6 +93,23 @@ public class SchedulingPeriodService(
             organizationId, name, period.Id);
         return period;
     }
+
+
+    public async Task<List<SchedulingPeriod>> GetUnfinishedSchedulingPeriodsAsync(Guid organizationId)
+    {
+        logger.LogInformation("Retrieving all scheduling periods for organization. OrganizationId: {OrganizationId}", organizationId);
+
+        await validationService.ValidateOrganizationAsync(organizationId);
+
+        var all = await schedulingPeriodRepository.GetAllAsync();
+        var filtered = all
+            .Where(p => p.OrganizationId == organizationId && p.ToDate >= DateTime.UtcNow)
+            .OrderBy(p => p.FromDate)
+            .ToList();
+
+        logger.LogInformation("Retrieved {Count} scheduling periods for organization. OrganizationId: {OrganizationId}", filtered.Count, organizationId);
+        return filtered;
+    }
     
     public async Task<List<SchedulingPeriod>> GetAllSchedulingPeriodsAsync(Guid organizationId)
     {
