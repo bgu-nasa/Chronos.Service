@@ -11,6 +11,8 @@ public interface ISchedulingPeriodService
     
     Task<SchedulingPeriod> GetSchedulingPeriodByNameAsync(Guid organizationId, string name);
 
+    Task<List<SchedulingPeriod>> GetUnfinishedSchedulingPeriodsAsync(Guid organizationId);
+
     Task<List<SchedulingPeriod>> GetAllSchedulingPeriodsAsync(Guid organizationId);
 
     Task UpdateSchedulingPeriodAsync(Guid organizationId, Guid schedulingPeriodId, string name, DateTime fromDate, DateTime toDate);

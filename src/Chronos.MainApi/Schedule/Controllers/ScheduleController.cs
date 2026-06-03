@@ -72,6 +72,19 @@ public class ScheduleController(
         return Ok(responses);
     }
 
+    [Authorize(Policy = ViewerPolicy)]
+    [HttpGet("periods/unfinished")]
+    public async Task<IActionResult> GetUnfinishedSchedulingPeriods()
+    {
+        logger.LogInformation("Get unfinished scheduling periods endpoint was called");
+        var organizationId = ControllerUtils.GetOrganizationIdAndFailIfMissing(HttpContext, logger);
+
+        var periods = await schedulingPeriodService.GetUnfinishedSchedulingPeriodsAsync(organizationId);
+        var responses = periods.Select(p => p.ToSchedulingPeriodResponse()).ToList();
+
+        return Ok(responses);
+    }
+
     [Authorize (Policy = ResourceManagerPolicy)]
     [HttpPatch("periods/{schedulingPeriodId}")]
     public async Task<IActionResult> UpdateSchedulingPeriod(
