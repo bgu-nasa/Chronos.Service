@@ -15,7 +15,7 @@ public class AssignmentService(
     ISchedulingPeriodService schedulingPeriodService,
     ILogger<AssignmentService> logger) : IAssignmentService
 {
-    public async Task<Guid> CreateAssignmentAsync(Guid organizationId, Guid slotId, Guid resourceId, Guid activityId, int weekNum)
+    public async Task<Guid> CreateAssignmentAsync(Guid organizationId, Guid slotId, Guid resourceId, Guid activityId, int? weekNum)
     {
         logger.LogInformation(
             "Creating assignment. OrganizationId: {OrganizationId}, SlotId: {SlotId}, ResourceId: {ResourceId}, ActivityId: {ActivityId}",
@@ -139,7 +139,7 @@ public class AssignmentService(
         return assignment;
     }
     
-    public async Task UpdateAssignmentAsync(Guid organizationId, Guid assignmentId, Guid slotId, Guid resourceId, Guid activityId, int weekNum)
+    public async Task UpdateAssignmentAsync(Guid organizationId, Guid assignmentId, Guid slotId, Guid resourceId, Guid activityId, int? weekNum)
     {
         logger.LogInformation(
             "Updating assignment. OrganizationId: {OrganizationId}, AssignmentId: {AssignmentId}",
@@ -256,7 +256,7 @@ public class AssignmentService(
         Guid organizationId,
         Guid slotId,
         Guid resourceId,
-        int weekNum,
+        int? weekNum,
         Guid? excludeAssignmentId = null)
     {
         var slot = await slotService.GetSlotAsync(organizationId, slotId);
@@ -273,7 +273,7 @@ public class AssignmentService(
                 continue;
             }
 
-            if (assignment.WeekNum.HasValue && assignment.WeekNum.Value != weekNum)
+            if (weekNum.HasValue && assignment.WeekNum.HasValue && assignment.WeekNum.Value != weekNum.Value)
             {
                 continue;
             }

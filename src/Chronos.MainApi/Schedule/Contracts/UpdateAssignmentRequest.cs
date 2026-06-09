@@ -4,4 +4,4 @@ public record UpdateAssignmentRequest(
     Guid SlotId,
     Guid ResourceId,
     Guid ActivityId,
-    int WeekNum);
+    int? WeekNum);
