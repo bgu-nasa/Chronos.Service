@@ -155,40 +155,98 @@ public class OnlineMatchingStrategy(
             );
         }
 
-        var excludedSlots = await GetExcludedSlotsAsync(
-            activity,
-            request.OrganizationId,
-            schedulingPeriodId
-        );
+        var modifiedCount = 0;
+        var unresolved = false;
 
-        var isValid = await IsAssignmentSetValidAsync(
-            activity,
-            assignments,
-            excludedSlots,
-            cancellationToken
-        );
-        if (isValid)
+        foreach (var weekGroup in assignments.GroupBy(a => a.WeekNum))
+        {
+            var weekNum = weekGroup.Key;
+            var weekAssignments = weekGroup.ToList();
+            var excludedSlots = await GetExcludedSlotsAsync(
+                activity,
+                request.OrganizationId,
+                schedulingPeriodId,
+                weekNum
+            );
+
+            if (await IsPartialAssignmentStreakAsync(activity, weekAssignments, cancellationToken))
+            {
+                foreach (var assignment in weekAssignments.ToList())
+                {
+                    await _assignmentRepository.DeleteAsync(assignment);
+                }
+
+                unresolved = true;
+                continue;
+            }
+
+            var isValid = await IsAssignmentSetValidAsync(
+                activity,
+                weekAssignments,
+                excludedSlots,
+                weekNum,
+                cancellationToken
+            );
+
+            if (isValid)
+            {
+                continue;
+            }
+
+            var rescheduleResult = await TryRescheduleAssignmentAsync(
+                request.ActivityConstraintId,
+                activity,
+                weekAssignments,
+                excludedSlots,
+                request.OrganizationId,
+                schedulingPeriodId,
+                request.InitiatedByUserId,
+                cancellationToken
+            );
+
+            modifiedCount += rescheduleResult.AssignmentsModified;
+            if (!rescheduleResult.Success)
+            {
+                unresolved = true;
+            }
+
+            var remainingForWeek = (await _assignmentRepository.GetByActivityIdAsync(activity.Id))
+                .Where(a => a.WeekNum == weekNum)
+                .ToList();
+            if (remainingForWeek.Count > 0
+                && await IsPartialAssignmentStreakAsync(activity, remainingForWeek, cancellationToken))
+            {
+                foreach (var assignment in remainingForWeek)
+                {
+                    await _assignmentRepository.DeleteAsync(assignment);
+                }
+                unresolved = true;
+            }
+        }
+
+        if (unresolved)
         {
             return new SchedulingResult(
                 request.ActivityConstraintId,
-                true,
+                false,
                 0,
-                0,
-                new List<Guid>(),
-                "Current assignment remains valid",
+                modifiedCount,
+                new List<Guid> { activity.Id },
+                "Activity could not be re-scheduled for one or more weeks",
                 request.InitiatedByUserId
             );
         }
 
-        return await TryRescheduleAssignmentAsync(
+        return new SchedulingResult(
             request.ActivityConstraintId,
-            activity,
-            assignments,
-            excludedSlots,
-            request.OrganizationId,
-            schedulingPeriodId,
-            request.InitiatedByUserId,
-            cancellationToken
+            true,
+            0,
+            modifiedCount,
+            new List<Guid>(),
+            modifiedCount > 0
+                ? "Activity successfully re-matched"
+                : "Current assignment remains valid",
+            request.InitiatedByUserId
         );
     }
 
@@ -299,6 +357,7 @@ public class OnlineMatchingStrategy(
                 activity,
                 currentAssignments,
                 excludedSlots,
+                null,
                 cancellationToken
             );
             if (isValid)
@@ -371,6 +430,7 @@ public class OnlineMatchingStrategy(
             .ToListAsync(cancellationToken);
 
         var startAssignment = currentAssignments[0];
+        var weekNum = startAssignment.WeekNum;
 
         // Stage A: try to preserve the starting slot while finding a valid full streak.
         var sameStartCandidates = await BuildStreakCandidatesAsync(
@@ -380,6 +440,7 @@ public class OnlineMatchingStrategy(
             resources,
             occupiedPairs,
             excludedSlots,
+            weekNum,
             cancellationToken
         );
 
@@ -406,6 +467,7 @@ public class OnlineMatchingStrategy(
                     SlotId = pair.SlotId,
                     ResourceId = pair.ResourceId,
                     ActivityId = activity.Id,
+                    WeekNum = weekNum,
                 });
             }
 
@@ -431,15 +493,21 @@ public class OnlineMatchingStrategy(
             resources,
             occupiedPairs,
             excludedSlots,
+            weekNum,
             cancellationToken
         );
 
         if (!fallbackCandidates.Any())
         {
             _logger.LogError(
-                "No available replacement found for Activity {ActivityId}. Keeping current assignment and reporting unresolved change.",
+                "No available replacement found for Activity {ActivityId}. Removing invalid assignment and reporting unresolved change.",
                 activity.Id
             );
+
+            foreach (var assignment in currentAssignments)
+            {
+                await _assignmentRepository.DeleteAsync(assignment);
+            }
 
             return new SchedulingResult(
                 requestId,
@@ -447,7 +515,7 @@ public class OnlineMatchingStrategy(
                 0,
                 0,
                 new List<Guid> { activity.Id },
-                "Activity could not be rescheduled according to the new constraint. Keep current assignment for now and consider assigning a substitute lecturer or cancelling the activity.",
+                "Activity could not be rescheduled according to the new constraint. Consider assigning a substitute lecturer or cancelling the activity.",
                 initiatedByUserId
             );
         }
@@ -473,6 +541,7 @@ public class OnlineMatchingStrategy(
                 SlotId = pair.SlotId,
                 ResourceId = pair.ResourceId,
                 ActivityId = activity.Id,
+                WeekNum = weekNum,
             });
         }
 
@@ -501,6 +570,7 @@ public class OnlineMatchingStrategy(
         List<Resource> resources,
         HashSet<(Guid SlotId, Guid ResourceId)> occupiedPairs,
         HashSet<Guid> excludedSlots,
+        int? weekNum,
         CancellationToken cancellationToken
     )
     {
@@ -527,7 +597,7 @@ public class OnlineMatchingStrategy(
                     continue;
                 }
 
-                var canAssign = await _constraintEvaluator.CanAssignAsync(activity, slot, resource);
+                var canAssign = await _constraintEvaluator.CanAssignAsync(activity, slot, resource, weekNum);
                 if (!canAssign)
                 {
                     continue;
@@ -541,6 +611,7 @@ public class OnlineMatchingStrategy(
                     orderedAllSlots,
                     excludedSlots,
                     occupiedPairs,
+                    weekNum,
                     cancellationToken
                 );
 
@@ -585,17 +656,50 @@ public class OnlineMatchingStrategy(
         return candidates.First(c => c.Anchor == selectedAnchor);
     }
 
+    private async Task<bool> IsPartialAssignmentStreakAsync(
+        Activity activity,
+        List<Assignment> assignments,
+        CancellationToken cancellationToken
+    )
+    {
+        if (activity.Duration <= 0 || assignments.Count == 0)
+        {
+            return false;
+        }
+
+        var slotIds = assignments.Select(a => a.SlotId).Distinct().ToList();
+        var slots = await _dbContext
+            .Slots.IgnoreQueryFilters()
+            .Where(s => slotIds.Contains(s.Id))
+            .ToListAsync(cancellationToken);
+
+        if (slots.Count != slotIds.Count)
+        {
+            return true;
+        }
+
+        var totalMinutes = assignments.Sum(a =>
+        {
+            var slot = slots.First(s => s.Id == a.SlotId);
+            return (int)(slot.ToTime - slot.FromTime).TotalMinutes;
+        });
+
+        return totalMinutes != activity.Duration;
+    }
+
     private async Task<HashSet<Guid>> GetExcludedSlotsAsync(
         Activity activity,
         Guid organizationId,
-        Guid schedulingPeriodId
+        Guid schedulingPeriodId,
+        int? weekNum = null
     )
     {
         return await _constraintProcessor.GetExcludedSlotIdsAsync(
             activity.Id,
             organizationId,
             activity.AssignedUserId != Guid.Empty ? activity.AssignedUserId : null,
-            schedulingPeriodId
+            schedulingPeriodId,
+            weekNum
         );
     }
 
@@ -603,6 +707,7 @@ public class OnlineMatchingStrategy(
         Activity activity,
         List<Assignment> assignments,
         HashSet<Guid> excludedSlots,
+        int? weekNum,
         CancellationToken cancellationToken
     )
     {
@@ -670,7 +775,7 @@ public class OnlineMatchingStrategy(
 
         foreach (var slot in orderedSlots)
         {
-            var canAssign = await _constraintEvaluator.CanAssignAsync(activity, slot, resource);
+            var canAssign = await _constraintEvaluator.CanAssignAsync(activity, slot, resource, weekNum);
             if (!canAssign)
             {
                 return false;
@@ -727,6 +832,7 @@ public class OnlineMatchingStrategy(
         List<Slot> orderedSlots,
         HashSet<Guid> excludedSlots,
         HashSet<(Guid SlotId, Guid ResourceId)> occupiedPairs,
+        int? weekNum,
         CancellationToken cancellationToken
     )
     {
@@ -760,7 +866,7 @@ public class OnlineMatchingStrategy(
                 return null;
             }
 
-            var canAssign = await _constraintEvaluator.CanAssignAsync(activity, nextSlot, resource);
+            var canAssign = await _constraintEvaluator.CanAssignAsync(activity, nextSlot, resource, weekNum);
             if (!canAssign)
             {
                 return null;

@@ -350,7 +350,7 @@ public class RankingAlgorithmStrategyTests
             OrganizationId = _orgId,
             Name = "Semester 1",
             FromDate = new DateTime(2026, 3, 2),
-            ToDate = new DateTime(2026, 3, 8),
+            ToDate = new DateTime(2026, 3, 7),
         });
         _dbContext.Subjects.Add(new Subject
         {

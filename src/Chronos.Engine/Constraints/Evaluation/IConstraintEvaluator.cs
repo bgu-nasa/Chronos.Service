@@ -17,7 +17,13 @@ public interface IConstraintEvaluator
     /// <param name="slot">The time slot</param>
     /// <param name="resource">The resource (e.g., room, equipment)</param>
     /// <returns>True if assignment is valid (no hard constraint violations), false otherwise</returns>
-    Task<bool> CanAssignAsync(Activity activity, Slot slot, Resource resource, int? weekNum = null);
+    Task<bool> CanAssignAsync(
+        Activity activity,
+        Slot slot,
+        Resource resource,
+        int? weekNum = null,
+        DateTime? schedulingPeriodFrom = null
+    );
 
     /// <summary>
     /// Gets all constraint violations for the given Activity, Slot, and Resource combination
@@ -30,6 +36,7 @@ public interface IConstraintEvaluator
         Activity activity,
         Slot slot,
         Resource resource,
-        int? weekNum = null
+        int? weekNum = null,
+        DateTime? schedulingPeriodFrom = null
     );
 }
