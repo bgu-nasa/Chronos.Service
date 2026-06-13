@@ -106,4 +106,28 @@ public static class TestDataBuilder
             UpdatedAt = DateTime.UtcNow,
         };
     }
+
+    public static List<Slot> CreateConsecutiveSlots(
+        Guid organizationId,
+        Guid schedulingPeriodId,
+        string weekday,
+        params (int fromHour, int toHour)[] blocks
+    )
+    {
+        var slots = new List<Slot>();
+        foreach (var (fromH, toH) in blocks)
+        {
+            slots.Add(new Slot
+            {
+                Id = Guid.NewGuid(),
+                OrganizationId = organizationId,
+                SchedulingPeriodId = schedulingPeriodId,
+                Weekday = weekday,
+                FromTime = new TimeSpan(fromH, 0, 0),
+                ToTime = new TimeSpan(toH, 0, 0),
+            });
+        }
+
+        return slots;
+    }
 }
