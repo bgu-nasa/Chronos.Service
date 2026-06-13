@@ -90,4 +90,77 @@ public class OrganizationLifecycleTests
             $"/api/management/role/user/{createdUser.UserId}");
         rolesResponse.StatusCode.Should().Be(HttpStatusCode.OK);
     }
+
+    [Test]
+    public async Task GivenAlreadyDeletedOrganization_WhenSoftDeleteAgain_ThenReturns400()
+    {
+        using var ctx = await AcceptanceContext.CreateAsync();
+
+        var firstDelete = await ctx.AdminClient.DeleteAsync("/api/management/organization");
+        firstDelete.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var secondDelete = await ctx.AdminClient.DeleteAsync("/api/management/organization");
+        secondDelete.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Test]
+    public async Task GivenActiveOrganization_WhenRestoreWithoutDeletion_ThenReturns400()
+    {
+        using var ctx = await AcceptanceContext.CreateAsync();
+
+        var restoreResponse = await ctx.AdminClient.PostAsync("/api/management/organization/restore", null);
+        restoreResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Test]
+    public async Task GivenExistingDepartment_WhenSoftDelete_ThenDepartmentIsMarkedDeleted()
+    {
+        using var ctx = await AcceptanceContext.CreateAsync();
+        var dept = await ctx.Seed.CreateDepartmentAsync($"Dept to delete {Guid.NewGuid():N}");
+
+        var deleteResponse = await ctx.AdminClient.DeleteAsync($"/api/management/department/{dept.Id}");
+        deleteResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var getResponse = await ctx.AdminClient.GetAsync($"/api/management/department/{dept.Id}");
+        var updated = await getResponse.ReadJsonAsync<DepartmentResponse>();
+        updated!.Deleted.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task GivenAlreadyDeletedDepartment_WhenSoftDeleteAgain_ThenReturns400()
+    {
+        using var ctx = await AcceptanceContext.CreateAsync();
+        var dept = await ctx.Seed.CreateDepartmentAsync($"Dept double delete {Guid.NewGuid():N}");
+
+        await ctx.AdminClient.DeleteAsync($"/api/management/department/{dept.Id}");
+
+        var secondDelete = await ctx.AdminClient.DeleteAsync($"/api/management/department/{dept.Id}");
+        secondDelete.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Test]
+    public async Task GivenSoftDeletedDepartment_WhenRestore_ThenDepartmentIsActive()
+    {
+        using var ctx = await AcceptanceContext.CreateAsync();
+        var dept = await ctx.Seed.CreateDepartmentAsync($"Dept to restore {Guid.NewGuid():N}");
+
+        await ctx.AdminClient.DeleteAsync($"/api/management/department/{dept.Id}");
+
+        var restoreResponse = await ctx.AdminClient.PostAsync($"/api/management/department/restore/{dept.Id}", null);
+        restoreResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var getResponse = await ctx.AdminClient.GetAsync($"/api/management/department/{dept.Id}");
+        var restored = await getResponse.ReadJsonAsync<DepartmentResponse>();
+        restored!.Deleted.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task GivenActiveDepartment_WhenRestoreWithoutDeletion_ThenReturns400()
+    {
+        using var ctx = await AcceptanceContext.CreateAsync();
+        var dept = await ctx.Seed.CreateDepartmentAsync($"Dept restore error {Guid.NewGuid():N}");
+
+        var restoreResponse = await ctx.AdminClient.PostAsync($"/api/management/department/restore/{dept.Id}", null);
+        restoreResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
 }

@@ -112,6 +112,56 @@ public class UserRoleAdministrationTests
         rolesAfterAttempt.Should().ContainSingle(r => r.Id == adminRole.Id);
     }
 
+    [Test]
+    public async Task GivenOrganizationWithUsers_WhenAdminListsAllUsers_ThenReturnsAllUsers()
+    {
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        await _ctx.Seed.CreateUserAsync($"list-user-a-{suffix}@chronos.test");
+        await _ctx.Seed.CreateUserAsync($"list-user-b-{suffix}@chronos.test");
+
+        var response = await _ctx.AdminClient.GetAsync("/api/user");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var users = await response.ReadJsonAsync<UserResponse[]>();
+        users.Should().NotBeNull();
+        users!.Should().Contain(u => u.Email == $"list-user-a-{suffix}@chronos.test");
+        users.Should().Contain(u => u.Email == $"list-user-b-{suffix}@chronos.test");
+    }
+
+    [Test]
+    public async Task GivenNonAdminUser_WhenCreateUser_ThenRequestIsRejected()
+    {
+        var viewerClient = _ctx.CreateClientAs(Domain.Management.Roles.Role.Viewer);
+
+        var response = await viewerClient.PostJsonAsync("/api/user",
+            new CreateUserRequest($"viewer-created-{Guid.NewGuid():N}@chronos.test", "Test", "User", TestConstants.DefaultPassword));
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Test]
+    public async Task GivenExistingUserEmail_WhenCreateUserWithSameEmail_ThenReturns400()
+    {
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        var email = $"dup-user-{suffix}@chronos.test";
+        await _ctx.Seed.CreateUserAsync(email);
+
+        var response = await _ctx.AdminClient.PostJsonAsync("/api/user",
+            new CreateUserRequest(email, "Test", "User", TestConstants.DefaultPassword));
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Test]
+    public async Task GivenOrganizationWithNoExtraRoles_WhenListRoleAssignments_ThenReturnsOnlySystemRole()
+    {
+        using var freshCtx = await AcceptanceContext.CreateAsync(_ctx.Factory, "Empty Roles Org");
+
+        var roles = await ReadRoleAssignmentsForClientAsync(freshCtx.AdminClient, "/api/management/role");
+
+        roles.Should().ContainSingle(r => r.Role == RoleType.Administrator);
+    }
+
     private async Task<UserResponse> ReadUserAsync(Guid userId)
     {
         var response = await _ctx.AdminClient.GetAsync($"/api/user/{userId}");
@@ -131,6 +181,14 @@ public class UserRoleAdministrationTests
     private async Task<RoleAssignmentResponse[]> ReadRoleAssignmentsAsync(string url)
     {
         var response = await _ctx.AdminClient.GetAsync(url);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        return await response.ReadJsonAsync<RoleAssignmentResponse[]>()
+               ?? throw new InvalidOperationException($"GET {url} returned no roles.");
+    }
+
+    private static async Task<RoleAssignmentResponse[]> ReadRoleAssignmentsForClientAsync(HttpClient client, string url)
+    {
+        var response = await client.GetAsync(url);
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         return await response.ReadJsonAsync<RoleAssignmentResponse[]>()
                ?? throw new InvalidOperationException($"GET {url} returned no roles.");

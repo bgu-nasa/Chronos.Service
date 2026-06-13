@@ -115,4 +115,33 @@ public class ErrorHandlingTests
         var body = await response.Content.ReadAsStringAsync();
         body.Should().Contain("private beta");
     }
+
+    [Test]
+    public async Task GivenMissingRequiredField_WhenRegister_ThenReturns400()
+    {
+        var client = _factory.CreateClient();
+
+        var response = await client.PostJsonAsync("/api/auth/register",
+            new RegisterRequest(
+                AdminUser: new CreateUserRequest("", "Test", "User", TestConstants.DefaultPassword),
+                OrganizationName: "Missing Field Org",
+                Plan: "free",
+                InviteCode: TestConstants.InviteCode));
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Test]
+    public async Task GivenDuplicateOrganizationName_WhenRegister_ThenReturns400()
+    {
+        var client = _factory.CreateClient();
+        var orgName = $"Duplicate Org {Guid.NewGuid():N}";
+
+        await client.PostJsonAsync("/api/auth/register", Register($"org-first-{Guid.NewGuid():N}@chronos.dev", orgName));
+
+        var secondResponse = await client.PostJsonAsync("/api/auth/register",
+            Register($"org-second-{Guid.NewGuid():N}@chronos.dev", orgName));
+
+        secondResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
 }

@@ -91,42 +91,149 @@ public class AppealLifecycleTests
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
-    private async Task<AssignedActivity> CreateAssignedActivityAsync()
+    [Test]
+    public async Task GivenNonExistentAppeal_WhenGetAppealById_ThenRequestIsRejected()
+    {
+        var missingAppealId = Guid.NewGuid();
+
+        var response = await _ctx.AdminClient.GetAsync($"/api/schedule/scheduling/appeals/{missingAppealId}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Test]
+    public async Task GivenAppealInAnotherOrganization_WhenGetAppealById_ThenRequestIsRejected()
+    {
+        using var otherCtx = await AcceptanceContext.CreateAsync(_ctx.Factory, "Appeals Cross-Org Get");
+        var setup = await CreateAssignedActivityAsync(otherCtx);
+
+        var createResp = await otherCtx.AdminClient.PostJsonAsync("/api/schedule/scheduling/appeals",
+            new CreateAppealRequest(setup.AssignmentId, "Other Org Appeal", "Submitted in a different organization."));
+        createResp.StatusCode.Should().Be(HttpStatusCode.Created);
+        var created = await createResp.ReadJsonAsync<AppealResponse>();
+        var appealId = Guid.Parse(created!.Id);
+
+        var response = await _ctx.AdminClient.GetAsync($"/api/schedule/scheduling/appeals/{appealId}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Test]
+    public async Task GivenExistingAppeal_WhenUpdateAppeal_ThenAppealIsUpdated()
+    {
+        var setup = await CreateAssignedActivityAsync();
+
+        var create = await _ctx.AdminClient.PostJsonAsync("/api/schedule/scheduling/appeals",
+            new CreateAppealRequest(setup.AssignmentId, "Original Title", "Original description."));
+        create.StatusCode.Should().Be(HttpStatusCode.Created);
+        var created = await create.ReadJsonAsync<AppealResponse>();
+        var appealId = Guid.Parse(created!.Id);
+
+        var update = await _ctx.AdminClient.PatchJsonAsync($"/api/schedule/scheduling/appeals/{appealId}",
+            new UpdateAppealRequest("Updated Title", "Updated description."));
+        update.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var retrieved = await ReadAppealAsync($"/api/schedule/scheduling/appeals/{appealId}");
+        retrieved.Title.Should().Be("Updated Title");
+        retrieved.Description.Should().Be("Updated description.");
+    }
+
+    [Test]
+    public async Task GivenNonExistentAppeal_WhenUpdateAppeal_ThenRequestIsRejected()
+    {
+        var missingAppealId = Guid.NewGuid();
+
+        var response = await _ctx.AdminClient.PatchJsonAsync(
+            $"/api/schedule/scheduling/appeals/{missingAppealId}",
+            new UpdateAppealRequest("Title", "Description"));
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Test]
+    public async Task GivenExistingAppeal_WhenDeleteAppeal_ThenAppealIsRemoved()
+    {
+        var setup = await CreateAssignedActivityAsync();
+
+        var create = await _ctx.AdminClient.PostJsonAsync("/api/schedule/scheduling/appeals",
+            new CreateAppealRequest(setup.AssignmentId, "To be deleted", "Will be removed."));
+        create.StatusCode.Should().Be(HttpStatusCode.Created);
+        var created = await create.ReadJsonAsync<AppealResponse>();
+        var appealId = Guid.Parse(created!.Id);
+
+        var delete = await _ctx.AdminClient.DeleteAsync($"/api/schedule/scheduling/appeals/{appealId}");
+        delete.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var get = await _ctx.AdminClient.GetAsync($"/api/schedule/scheduling/appeals/{appealId}");
+        get.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Test]
+    public async Task GivenNonExistentAppeal_WhenDeleteAppeal_ThenRequestIsRejected()
+    {
+        var missingAppealId = Guid.NewGuid();
+
+        var response = await _ctx.AdminClient.DeleteAsync($"/api/schedule/scheduling/appeals/{missingAppealId}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Test]
+    public async Task GivenAppealInAnotherOrganization_WhenDeleteAppeal_ThenRequestIsRejected()
+    {
+        using var otherCtx = await AcceptanceContext.CreateAsync(_ctx.Factory, "Appeals Cross-Org Delete");
+        var setup = await CreateAssignedActivityAsync(otherCtx);
+
+        var createResp = await otherCtx.AdminClient.PostJsonAsync("/api/schedule/scheduling/appeals",
+            new CreateAppealRequest(setup.AssignmentId, "Other Org Appeal", "Submitted in a different organization."));
+        createResp.StatusCode.Should().Be(HttpStatusCode.Created);
+        var created = await createResp.ReadJsonAsync<AppealResponse>();
+        var appealId = Guid.Parse(created!.Id);
+
+        var response = await _ctx.AdminClient.DeleteAsync($"/api/schedule/scheduling/appeals/{appealId}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    private Task<AssignedActivity> CreateAssignedActivityAsync() =>
+        CreateAssignedActivityAsync(_ctx);
+
+    private async Task<AssignedActivity> CreateAssignedActivityAsync(AcceptanceContext ctx)
     {
         var suffix = Guid.NewGuid().ToString("N")[..8];
-        var department = await _ctx.Seed.CreateDepartmentAsync($"Appeals Dept {suffix}");
-        var period = await _ctx.Seed.CreateSchedulingPeriodAsync(
+        var department = await ctx.Seed.CreateDepartmentAsync($"Appeals Dept {suffix}");
+        var period = await ctx.Seed.CreateSchedulingPeriodAsync(
             $"Appeals Period {suffix}",
             DateTime.UtcNow.Date.AddDays(30),
             DateTime.UtcNow.Date.AddDays(120));
-        var slot = await _ctx.Seed.CreateSlotAsync(
+        var slot = await ctx.Seed.CreateSlotAsync(
             Guid.Parse(period.Id),
             WeekDays.Monday,
             TimeSpan.FromHours(9),
             TimeSpan.FromHours(11));
-        var resourceType = await _ctx.Seed.CreateResourceTypeAsync(_ctx.OrganizationId, $"Appeals Room {suffix}");
-        var resource = await _ctx.Seed.CreateResourceAsync(
-            _ctx.OrganizationId,
+        var resourceType = await ctx.Seed.CreateResourceTypeAsync(ctx.OrganizationId, $"Appeals Room {suffix}");
+        var resource = await ctx.Seed.CreateResourceAsync(
+            ctx.OrganizationId,
             resourceType.Id,
             "Appeals Building",
             $"Room {suffix}",
             capacity: 80);
-        var user = await _ctx.Seed.CreateUserAsync($"appeals-instructor-{suffix}@chronos.test");
-        var subject = await _ctx.Seed.CreateSubjectAsync(
-            _ctx.OrganizationId,
+        var user = await ctx.Seed.CreateUserAsync($"appeals-instructor-{suffix}@chronos.test");
+        var subject = await ctx.Seed.CreateSubjectAsync(
+            ctx.OrganizationId,
             department.Id,
             Guid.Parse(period.Id),
             $"APL{suffix}",
             $"Appeals Subject {suffix}");
-        var activity = await _ctx.Seed.CreateActivityAsync(
-            _ctx.OrganizationId,
+        var activity = await ctx.Seed.CreateActivityAsync(
+            ctx.OrganizationId,
             department.Id,
             subject.Id,
             Guid.Parse(user.UserId),
             "Lecture",
             expectedStudents: 35,
             duration: 2);
-        var assignment = await _ctx.Seed.CreateAssignmentAsync(
+        var assignment = await ctx.Seed.CreateAssignmentAsync(
             Guid.Parse(slot.Id),
             resource.Id,
             activity.Id,

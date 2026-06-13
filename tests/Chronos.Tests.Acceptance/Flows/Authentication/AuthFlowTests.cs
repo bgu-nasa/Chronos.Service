@@ -103,4 +103,15 @@ public class AuthFlowTests
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
+
+    [Test]
+    public async Task GivenNonExistentEmail_WhenLogin_ThenReturns401()
+    {
+        var client = _factory.CreateClient();
+
+        var loginResponse = await client.PostJsonAsync("/api/auth/login",
+            new LoginRequest("nobody@doesnotexist.dev", TestConstants.DefaultPassword));
+
+        loginResponse.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
 }
