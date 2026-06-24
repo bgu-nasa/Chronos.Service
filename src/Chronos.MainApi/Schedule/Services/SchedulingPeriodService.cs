@@ -30,7 +30,7 @@ public class SchedulingPeriodService(
                 ? DateTime.SpecifyKind(toDate, DateTimeKind.Utc)
                 : toDate.ToUniversalTime());
         
-        await ValidateDateRange(fromDateUtc, toDateUtc);
+        await ValidateDateRange(organizationId, fromDateUtc, toDateUtc);
         
         var period = new SchedulingPeriod
         {
@@ -147,7 +147,13 @@ public class SchedulingPeriodService(
 
         var period = await ValidateAndGetSchedulingPeriodAsync(organizationId, schedulingPeriodId);
 
-        await ValidateDateRange(fromDateUtc, toDateUtc, schedulingPeriodId);
+        var fromDateUnchanged = fromDateUtc.Date == period.FromDate.Date;
+        if (!fromDateUnchanged && period.FromDate.Date <= DateTime.UtcNow.Date)
+        {
+            throw new BadRequestException("Cannot change FromDate after the scheduling period has started.");
+        }
+
+        await ValidateDateRangeForUpdate(organizationId, fromDateUtc, toDateUtc, schedulingPeriodId, skipFromDatePastCheck: fromDateUnchanged);
 
         period.Name = name;
         period.FromDate = fromDateUtc;
@@ -169,7 +175,7 @@ public class SchedulingPeriodService(
 
         logger.LogInformation("Scheduling period deleted successfully. SchedulingPeriodId: {SchedulingPeriodId}", schedulingPeriodId);
     }
-    private async Task ValidateDateRange(DateTime fromDate, DateTime toDate, Guid? excludePeriodId = null)
+    private async Task ValidateDateRange(Guid organizationId, DateTime fromDate, DateTime toDate, Guid? excludePeriodId = null)
     {
         var todayUtc = DateTime.UtcNow.Date;
 
@@ -181,7 +187,7 @@ public class SchedulingPeriodService(
         {
             throw new BadRequestException("FromDate must be before or equal to ToDate");
         }
-        var all = await schedulingPeriodRepository.GetAllAsync();
+        var all = await this.GetAllSchedulingPeriodsAsync(organizationId);
         foreach (var period in all)
         {
             // Exclude the current period when updating
@@ -196,6 +202,37 @@ public class SchedulingPeriodService(
             }
         }
     }
+    private async Task ValidateDateRangeForUpdate(Guid organizationId, DateTime fromDate, DateTime toDate, Guid excludePeriodId, bool skipFromDatePastCheck)
+    {
+        var todayUtc = DateTime.UtcNow.Date;
+
+        if (!skipFromDatePastCheck && fromDate.Date < todayUtc)
+        {
+            throw new BadRequestException("FromDate and ToDate cannot be in the past");
+        }
+        if (toDate.Date < todayUtc)
+        {
+            throw new BadRequestException("FromDate and ToDate cannot be in the past");
+        }
+        if (fromDate.Date >= toDate.Date)
+        {
+            throw new BadRequestException("FromDate must be before or equal to ToDate");
+        }
+        var all = await this.GetAllSchedulingPeriodsAsync(organizationId);
+        foreach (var period in all)
+        {
+            if (period.Id == excludePeriodId)
+            {
+                continue;
+            }
+
+            if (fromDate < period.ToDate && toDate > period.FromDate)
+            {
+                throw new BadRequestException("The specified date range overlaps with an existing scheduling period.");
+            }
+        }
+    }
+
     private async Task<SchedulingPeriod> ValidateAndGetSchedulingPeriodAsync(Guid organizationId, Guid schedulingPeriodId)
     {
         var period = await schedulingPeriodRepository.GetByIdAsync(schedulingPeriodId);
